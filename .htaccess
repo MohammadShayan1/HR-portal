@@ -1,0 +1,22 @@
+# Apache Configuration for HR Portal
+# WAMP-Compatible Version
+
+# Prevent directory listing
+Options -Indexes
+
+# Protect database file
+<FilesMatch "\.sqlite$">
+    Require all denied
+</FilesMatch>
+
+# Protect sensitive files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Optional: Security Headers (uncomment if mod_headers is enabled)
+# <IfModule mod_headers.c>
+#     Header set X-Content-Type-Options "nosniff"
+#     Header set X-Frame-Options "SAMEORIGIN"
+#     Header set X-XSS-Protection "1; mode=block"
+# </IfModule>

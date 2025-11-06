@@ -1,0 +1,39 @@
+# Database
+db.sqlite
+*.sqlite
+*.db
+
+# Uploads
+assets/uploads/logo.png
+assets/uploads/resumes/*
+!assets/uploads/.gitkeep
+
+# Logs
+*.log
+error_log.txt
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# Sensitive data
+config.php
+.env
+
+# Backup files
+*.bak
+*.backup
+*.old

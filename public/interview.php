@@ -45,6 +45,7 @@ $theme_secondary = get_setting('theme_secondary', $candidate['user_id']) ?? '#76
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../assets/style.css">
+    <script src="../assets/ai-detection.js"></script>
     <style>
         body {
             background: linear-gradient(135deg, <?php echo $theme_primary; ?> 0%, <?php echo $theme_secondary; ?> 100%);
@@ -342,6 +343,14 @@ $theme_secondary = get_setting('theme_secondary', $candidate['user_id']) ?? '#76
             const formData = new FormData();
             formData.append('token', token);
             formData.append('answer', answer);
+            
+            // Add typing metadata from AI detection
+            if (window.typingAnalyzer) {
+                const metadata = window.typingAnalyzer.getMetadata();
+                const suspicionScore = window.typingAnalyzer.getSuspicionScore();
+                formData.append('typing_metadata', JSON.stringify(metadata));
+                formData.append('suspicion_score', suspicionScore);
+            }
             
             const response = await fetch('../functions/actions.php?action=submit_answer', {
                 method: 'POST',

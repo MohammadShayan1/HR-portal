@@ -117,6 +117,41 @@ try {
         }
     }
     
+    // Add AI detection fields to interview_answers table
+    echo "Adding AI detection fields to interview_answers table...\n";
+    try {
+        $pdo->exec("ALTER TABLE interview_answers ADD COLUMN typing_metadata TEXT");
+        echo "✓ Added typing_metadata column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ typing_metadata column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    try {
+        $pdo->exec("ALTER TABLE interview_answers ADD COLUMN ai_detection_score INTEGER DEFAULT 0");
+        echo "✓ Added ai_detection_score column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ ai_detection_score column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    try {
+        $pdo->exec("ALTER TABLE interview_answers ADD COLUMN ai_detection_flags TEXT");
+        echo "✓ Added ai_detection_flags column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ ai_detection_flags column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
     echo "\n✅ Database migration completed successfully!\n";
     echo "\nYou can now delete this migrate.php file.\n";
     

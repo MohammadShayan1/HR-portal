@@ -68,6 +68,10 @@ switch ($action) {
         submit_answer();
         break;
     
+    case 'generate_report':
+        generate_report_ajax();
+        break;
+    
     default:
         header('HTTP/1.1 404 Not Found');
         echo json_encode(['error' => 'Action not found']);
@@ -351,8 +355,12 @@ function get_interview_question() {
 function submit_answer() {
     header('Content-Type: application/json');
     
+    require_once __DIR__ . '/ai_detection.php';
+    
     $token = $_POST['token'] ?? '';
     $answer = trim($_POST['answer'] ?? '');
+    $typing_metadata = $_POST['typing_metadata'] ?? '{}';
+    $suspicion_score = (int)($_POST['suspicion_score'] ?? 0);
     
     if (empty($token) || empty($answer)) {
         echo json_encode(['error' => 'Invalid request']);
@@ -390,12 +398,23 @@ function submit_answer() {
         exit;
     }
     
-    // Save answer
+    // Perform AI detection
+    $metadata = json_decode($typing_metadata, true) ?: [];
+    $detection_result = detect_ai_response($answer, $metadata);
+    
+    // Save answer with AI detection data
     $stmt = $pdo->prepare("
-        INSERT INTO interview_answers (candidate_id, question, answer) 
-        VALUES (?, ?, ?)
+        INSERT INTO interview_answers (candidate_id, question, answer, typing_metadata, ai_detection_score, ai_detection_flags) 
+        VALUES (?, ?, ?, ?, ?, ?)
     ");
-    $stmt->execute([$candidate['id'], $question['question'], $answer]);
+    $stmt->execute([
+        $candidate['id'], 
+        $question['question'], 
+        $answer,
+        $typing_metadata,
+        $detection_result['ai_probability'],
+        json_encode($detection_result['flags'])
+    ]);
     
     echo json_encode(['success' => true]);
     exit;
@@ -445,3 +464,102 @@ function generate_report() {
     header('Location: ../index.php?page=candidates&job_id=' . $job_id . '&report_generated=1');
     exit;
 }
+
+/**
+ * Generate evaluation report via AJAX (for regeneration)
+ */
+function generate_report_ajax() {
+    // Suppress any errors/warnings that might output HTML
+    error_reporting(0);
+    ini_set('display_errors', 0);
+    
+    // Clear any output buffering to prevent HTML errors
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    ob_start();
+    
+    header('Content-Type: application/json');
+    
+    try {
+        $candidate_id = $_GET['candidate_id'] ?? 0;
+        
+        if ($candidate_id <= 0) {
+            ob_end_clean();
+            echo json_encode(['error' => 'Invalid candidate ID']);
+            exit;
+        }
+        
+        // Verify candidate belongs to current user
+        $user_id = get_current_user_id();
+        
+        if (!$user_id) {
+            ob_end_clean();
+            echo json_encode(['error' => 'User not authenticated']);
+            exit;
+        }
+        
+        $pdo = get_db();
+        
+        $stmt = $pdo->prepare("
+            SELECT c.id FROM candidates c 
+            JOIN jobs j ON c.job_id = j.id 
+            WHERE c.id = ? AND j.user_id = ?
+        ");
+        $stmt->execute([$candidate_id, $user_id]);
+        
+        if (!$stmt->fetch()) {
+            ob_end_clean();
+            echo json_encode(['error' => 'Unauthorized access']);
+            exit;
+        }
+        
+        // Generate the report
+        $report = generate_evaluation_report($candidate_id);
+        
+        if (!$report) {
+            ob_end_clean();
+            echo json_encode(['error' => 'Failed to generate report']);
+            exit;
+        }
+        
+        if (isset($report['error'])) {
+            ob_end_clean();
+            echo json_encode(['error' => $report['error']]);
+            exit;
+        }
+        
+        // Delete old report(s) for this candidate
+        $stmt = $pdo->prepare("DELETE FROM reports WHERE candidate_id = ?");
+        $stmt->execute([$candidate_id]);
+        
+        // Save new report to database
+        $stmt = $pdo->prepare("
+            INSERT INTO reports (candidate_id, report_content, score, generated_at) 
+            VALUES (?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $candidate_id,
+            $report['report_content'],
+            $report['score'],
+            date('Y-m-d H:i:s')
+        ]);
+        
+        // Update candidate status
+        $stmt = $pdo->prepare("UPDATE candidates SET status = 'Report Ready' WHERE id = ?");
+        $stmt->execute([$candidate_id]);
+        
+        ob_end_clean();
+        echo json_encode([
+            'success' => true,
+            'score' => $report['score'],
+            'message' => 'Report regenerated successfully'
+        ]);
+    } catch (Exception $e) {
+        ob_end_clean();
+        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    }
+    exit;
+}
+

@@ -75,6 +75,9 @@ function init_database($pdo) {
         candidate_id INTEGER NOT NULL,
         question TEXT NOT NULL,
         answer TEXT NOT NULL,
+        typing_metadata TEXT,
+        ai_detection_score INTEGER DEFAULT 0,
+        ai_detection_flags TEXT,
         FOREIGN KEY (candidate_id) REFERENCES candidates(id)
     )");
     

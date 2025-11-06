@@ -100,24 +100,45 @@ $qa_pairs = $stmt->fetchAll();
                 <h5 class="mb-0"><i class="bi bi-star"></i> AI Score</h5>
             </div>
             <div class="card-body text-center">
-                <div class="display-1 fw-bold 
-                    <?php 
-                    if ($report['score'] >= 80) echo 'text-success';
-                    elseif ($report['score'] >= 60) echo 'text-warning';
-                    else echo 'text-danger';
-                    ?>">
-                    <?php echo $report['score']; ?>
-                </div>
-                <p class="text-muted mb-0">out of 100</p>
-                <small class="text-muted">Generated: <?php echo format_date($report['generated_at']); ?></small>
+                <?php 
+                $has_error = strpos($report['report_content'], 'Error generating report') !== false || 
+                             strpos($report['report_content'], 'Unable to generate') !== false;
+                
+                if ($has_error): ?>
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-exclamation-triangle"></i> Report generation encountered an issue
+                    </div>
+                    <button id="regenerateBtn" class="btn btn-primary" onclick="regenerateReport()">
+                        <i class="bi bi-arrow-clockwise"></i> Regenerate Report
+                    </button>
+                <?php else: ?>
+                    <div class="display-1 fw-bold 
+                        <?php 
+                        if ($report['score'] >= 80) echo 'text-success';
+                        elseif ($report['score'] >= 60) echo 'text-warning';
+                        else echo 'text-danger';
+                        ?>">
+                        <?php echo $report['score']; ?>
+                    </div>
+                    <p class="text-muted mb-0">out of 100</p>
+                    <small class="text-muted">Generated: <?php echo format_date($report['generated_at']); ?></small>
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="regenerateReport()">
+                            <i class="bi bi-arrow-clockwise"></i> Regenerate
+                        </button>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
     
     <div class="col-md-8 mb-4">
         <div class="card">
-            <div class="card-header bg-success text-white">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-clipboard-data"></i> AI Evaluation Report</h5>
+                <button class="btn btn-sm btn-light" onclick="regenerateReport()">
+                    <i class="bi bi-arrow-clockwise"></i> Regenerate
+                </button>
             </div>
             <div class="card-body">
                 <div class="report-content">
@@ -145,12 +166,84 @@ $qa_pairs = $stmt->fetchAll();
                             </h6>
                             <p class="ps-4"><?php echo sanitize($qa['question']); ?></p>
                             
-                            <h6 class="text-success">
-                                <i class="bi bi-chat-left-dots"></i> Answer
-                            </h6>
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <h6 class="text-success mb-0">
+                                    <i class="bi bi-chat-left-dots"></i> Answer
+                                </h6>
+                                
+                                <?php 
+                                $ai_score = isset($qa['ai_detection_score']) ? (int)$qa['ai_detection_score'] : 0;
+                                $ai_flags = isset($qa['ai_detection_flags']) ? json_decode($qa['ai_detection_flags'], true) : [];
+                                
+                                if ($ai_score > 0):
+                                    // Determine badge color based on score
+                                    if ($ai_score < 30) {
+                                        $badge_class = 'bg-success';
+                                        $badge_text = 'Low Risk';
+                                        $icon = 'check-circle';
+                                    } elseif ($ai_score < 60) {
+                                        $badge_class = 'bg-warning text-dark';
+                                        $badge_text = 'Moderate Risk';
+                                        $icon = 'exclamation-triangle';
+                                    } else {
+                                        $badge_class = 'bg-danger';
+                                        $badge_text = 'High Risk';
+                                        $icon = 'x-circle';
+                                    }
+                                ?>
+                                    <span class="badge <?php echo $badge_class; ?>" title="AI Detection Score: <?php echo $ai_score; ?>%">
+                                        <i class="bi bi-<?php echo $icon; ?>"></i> 
+                                        AI Detection: <?php echo $ai_score; ?>% - <?php echo $badge_text; ?>
+                                    </span>
+                                    
+                                    <?php if (!empty($ai_flags)): ?>
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                                data-bs-toggle="collapse" 
+                                                data-bs-target="#ai-details-<?php echo $i; ?>" 
+                                                aria-expanded="false">
+                                            <i class="bi bi-info-circle"></i> Details
+                                        </button>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
+                            
                             <p class="ps-4 border-start border-3 border-success">
                                 <?php echo nl2br(sanitize($qa['answer'])); ?>
                             </p>
+                            
+                            <?php if (!empty($ai_flags)): ?>
+                                <div class="collapse mt-2" id="ai-details-<?php echo $i; ?>">
+                                    <div class="card card-body bg-light">
+                                        <h6 class="mb-2"><i class="bi bi-flag"></i> Detection Flags:</h6>
+                                        <ul class="mb-2">
+                                            <?php foreach ($ai_flags as $flag): ?>
+                                                <li class="text-muted small"><?php echo sanitize($flag); ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                        
+                                        <?php if (isset($qa['typing_metadata']) && !empty($qa['typing_metadata'])): 
+                                            $metadata = json_decode($qa['typing_metadata'], true);
+                                            if ($metadata):
+                                        ?>
+                                            <h6 class="mb-2 mt-2"><i class="bi bi-graph-up"></i> Typing Analysis:</h6>
+                                            <div class="row small text-muted">
+                                                <div class="col-md-3">
+                                                    <strong>Total Keystrokes:</strong> <?php echo $metadata['total_keystrokes'] ?? 'N/A'; ?>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <strong>Paste Count:</strong> <?php echo $metadata['paste_count'] ?? 0; ?>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <strong>Typing Speed:</strong> <?php echo isset($metadata['typing_speed']) ? round($metadata['typing_speed'], 1) : 'N/A'; ?> chars/sec
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <strong>Response Time:</strong> <?php echo isset($metadata['response_time']) ? round($metadata['response_time']) : 'N/A'; ?>s
+                                                </div>
+                                            </div>
+                                        <?php endif; endif; ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <?php if ($i < count($qa_pairs) - 1): ?>
                             <hr>
@@ -170,8 +263,42 @@ $qa_pairs = $stmt->fetchAll();
         <button onclick="window.print()" class="btn btn-outline-primary">
             <i class="bi bi-printer"></i> Print Report
         </button>
+        <button class="btn btn-outline-secondary" onclick="regenerateReport()">
+            <i class="bi bi-arrow-clockwise"></i> Regenerate Report
+        </button>
     </div>
 </div>
+
+<script>
+function regenerateReport() {
+    if (!confirm('Are you sure you want to regenerate this report? This will replace the existing evaluation.')) {
+        return;
+    }
+    
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generating...';
+    
+    fetch('functions/actions.php?action=generate_report&candidate_id=<?php echo $candidate_id; ?>')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            } else if (data.success) {
+                // Reload the page to show the new report
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            alert('Error regenerating report: ' + error.message);
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
+}
+</script>
 
 <style>
 @media print {

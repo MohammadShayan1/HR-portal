@@ -1,0 +1,15 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/qlabs/public_html/hr.qlabs.pk
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/cp -R * $DEPLOYPATH
+    - /bin/chmod 755 $DEPLOYPATH
+    - /bin/chmod 644 $DEPLOYPATH/*.php
+    - /bin/chmod 644 $DEPLOYPATH/*.md
+    - /bin/chmod 755 $DEPLOYPATH/assets
+    - /bin/chmod 755 $DEPLOYPATH/functions
+    - /bin/chmod 755 $DEPLOYPATH/gui
+    - /bin/chmod 755 $DEPLOYPATH/public
+    - /bin/chmod 666 $DEPLOYPATH/db.sqlite
+    - /bin/touch $DEPLOYPATH/db.sqlite

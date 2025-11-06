@@ -92,11 +92,19 @@ function call_gemini_api($prompt, $json_response = false, $user_id = null) {
             $text = $matches[1];
         }
         
+        // Try to extract JSON object from text
+        if (preg_match('/\{.*\}/s', $text, $matches)) {
+            $text = $matches[0];
+        }
+        
+        $text = trim($text);
+        
         $json = json_decode($text, true);
         if (json_last_error() === JSON_ERROR_NONE) {
             return $json;
         } else {
-            return ['error' => 'Failed to parse JSON response', 'raw' => $text];
+            // If JSON parsing failed, return error with raw text for debugging
+            return ['error' => 'Failed to parse JSON response: ' . json_last_error_msg(), 'raw' => $text];
         }
     }
     
@@ -261,19 +269,21 @@ function generate_evaluation_report($candidate_id) {
     $prompt = "You are an expert HR analyst. Based on the job description and the candidate's " .
               "interview answers, please provide a comprehensive evaluation.\n\n" .
               $transcript . "\n\n" .
-              "Please provide your evaluation in JSON format with these exact keys:\n" .
+              "IMPORTANT: Respond with ONLY a valid JSON object, no additional text or explanation.\n\n" .
+              "Use this exact format:\n" .
               "{\n" .
-              '  "score": <integer from 0-100>,'."\n" .
-              '  "report_content": "<detailed markdown-formatted report>"'."\n" .
+              '  "score": 75,'."\n" .
+              '  "report_content": "# Evaluation Report\n\n## Overall Assessment\n\nYour detailed assessment here..."'."\n" .
               "}\n\n" .
-              "The report_content should include:\n" .
+              "The report_content should be markdown-formatted and include:\n" .
               "- **Overall Assessment**: Brief summary\n" .
               "- **Strengths**: Key positive points\n" .
               "- **Areas of Concern**: Any weaknesses or gaps\n" .
               "- **Communication Skills**: Quality of responses\n" .
               "- **Technical/Professional Fit**: Match to job requirements\n" .
               "- **Recommendation**: Hire, Maybe, or Pass with reasoning\n\n" .
-              "Be objective, professional, and thorough.";
+              "Score should be 0-100. Be objective, professional, and thorough.\n\n" .
+              "Remember: Return ONLY the JSON object, nothing else.";
     
     $result = call_gemini_api($prompt, true, $candidate['user_id']);
     

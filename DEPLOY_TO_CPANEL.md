@@ -1,8 +1,73 @@
-# Deploying to cPanel with Git
+# Deploying to cPanel with Git (GitHub Integration)
 
 ## Quick Setup Instructions
 
-### 1. Create Git Repository in cPanel
+### Prerequisites
+- GitHub repository created and connected
+- cPanel account with Git™ Version Control access
+- SSH access to your cPanel server
+
+---
+
+## Method 1: Automatic Deployment (Recommended)
+
+This method uses `.cpanel.yml` for automatic deployment when you push to GitHub.
+
+### 1. Update .cpanel.yml
+
+Edit `.cpanel.yml` and replace `/home/username/public_html/hr-portal` with your actual path:
+
+```yaml
+- export DEPLOYPATH=/home/YOUR_CPANEL_USERNAME/public_html/YOUR_FOLDER
+```
+
+### 2. Create Git Repository in cPanel
+
+1. Log into your **cPanel**
+2. Go to **Git™ Version Control**
+3. Click **Create**
+4. Fill in the details:
+   - **Clone URL**: `https://github.com/yourusername/your-repo.git`
+   - **Repository Path**: `hr-portal` (or your preferred directory)
+   - **Repository Name**: `HR-Portal`
+5. Click **Create**
+
+### 3. Enable Automatic Deployment
+
+1. In cPanel Git™ Version Control, find your repository
+2. Click **Manage**
+3. **Enable** the option: "Pull on Git push (requires webhook)"
+4. Copy the **Webhook URL** shown
+
+### 4. Add Webhook to GitHub
+
+1. Go to your GitHub repository
+2. Click **Settings** → **Webhooks** → **Add webhook**
+3. Paste the cPanel webhook URL
+4. Content type: `application/json`
+5. Click **Add webhook**
+
+### 5. Push and Deploy
+
+Now every time you push to GitHub:
+
+```bash
+git add .
+git commit -m "Your changes"
+git push origin main  # or master
+```
+
+cPanel will automatically pull and deploy using `.cpanel.yml` instructions! 🎉
+
+---
+
+## Method 2: Manual Git Push to cPanel
+
+---
+
+## Method 2: Manual Git Push to cPanel
+
+### 1. Create Git Repository in cPanel (Without Clone URL)
 
 1. Log into your **cPanel**
 2. Go to **Git™ Version Control**
@@ -47,14 +112,12 @@ After deploying, SSH into your server or use cPanel File Manager terminal:
 ```bash
 cd /public_html/hr-portal  # or your deployment path
 
-# Run the database migration
+# Run the database migration (IMPORTANT: Do this only once!)
 php migrate.php
 
-# Set proper permissions
-chmod 755 functions/
-chmod 755 assets/uploads/
-chmod 777 assets/uploads/resumes/
-chmod 666 db.sqlite  # Will be created after first use
+# The .cpanel.yml already sets permissions, but verify:
+ls -la db.sqlite  # Should show -rw-rw-rw-
+ls -la assets/uploads/resumes/  # Should show drwxrwxrwx
 ```
 
 ### 6. Configure for Production

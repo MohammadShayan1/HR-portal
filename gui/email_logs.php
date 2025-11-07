@@ -7,8 +7,7 @@
 require_once __DIR__ . '/../functions/db.php';
 require_once __DIR__ . '/../functions/auth.php';
 
-// Check if user is logged in
-session_start();
+// Check if user is logged in (session already started in index.php)
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../login.php');
     exit;
@@ -25,7 +24,7 @@ $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $limit;
 
 // Build query with filters
-$where_clauses = ["c.user_id = :user_id"];
+$where_clauses = ["j.user_id = :user_id"];
 $params = [':user_id' => $user_id];
 
 if ($status_filter !== 'all') {
@@ -45,6 +44,7 @@ $count_stmt = $pdo->prepare("
     SELECT COUNT(*) as total
     FROM email_logs el
     LEFT JOIN candidates c ON el.candidate_id = c.id
+    LEFT JOIN jobs j ON c.job_id = j.id
     WHERE $where_sql
 ");
 $count_stmt->execute($params);
@@ -57,7 +57,7 @@ $stmt = $pdo->prepare("
         el.*,
         c.name as candidate_name,
         c.email as candidate_email,
-        j.job_title
+        j.title as job_title
     FROM email_logs el
     LEFT JOIN candidates c ON el.candidate_id = c.id
     LEFT JOIN jobs j ON c.job_id = j.id
@@ -78,11 +78,12 @@ $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stats_stmt = $pdo->prepare("
     SELECT 
         COUNT(*) as total_emails,
-        SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) as sent_count,
-        SUM(CASE WHEN status LIKE 'failed%' THEN 1 ELSE 0 END) as failed_count
+        SUM(CASE WHEN el.status = 'sent' THEN 1 ELSE 0 END) as sent_count,
+        SUM(CASE WHEN el.status LIKE 'failed%' THEN 1 ELSE 0 END) as failed_count
     FROM email_logs el
     LEFT JOIN candidates c ON el.candidate_id = c.id
-    WHERE c.user_id = :user_id
+    LEFT JOIN jobs j ON c.job_id = j.id
+    WHERE j.user_id = :user_id
 ");
 $stats_stmt->execute([':user_id' => $user_id]);
 $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);

@@ -323,8 +323,21 @@ function sendSchedulingInvitation(candidateId, candidateName) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+    })
+    .then(text => {
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Response text:', text);
+            throw new Error('Invalid JSON response from server');
+        }
+        
         if (data.success) {
             btn.innerHTML = '<i class="bi bi-check-circle"></i> Sent!';
             btn.classList.remove('btn-success');
@@ -337,6 +350,7 @@ function sendSchedulingInvitation(candidateId, candidateName) {
         }
     })
     .catch(error => {
+        console.error('Error:', error);
         btn.innerHTML = originalHtml;
         btn.disabled = false;
         alert('Error: ' + error.message);

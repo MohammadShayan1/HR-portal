@@ -335,7 +335,7 @@ function send_meeting_invitation_email($candidate_id) {
     
     // Use enhanced email sending with better error handling
     require_once __DIR__ . '/email_helper.php';
-    $result = send_email_enhanced($to, $subject, $message, $company_name . ' HR Team', $company_email, $candidate_id);
+    $result = send_email_enhanced($to, $subject, $message, $company_name . ' HR Team', 'noreply@hr.qlabs.pk', $candidate_id);
     
     return $result['success'];
 }

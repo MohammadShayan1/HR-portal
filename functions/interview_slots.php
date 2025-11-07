@@ -434,14 +434,9 @@ function send_scheduling_invitation($candidate_id) {
     </html>
     ";
     
-    $headers = "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-type: text/html; charset=UTF-8" . "\r\n";
-    $headers .= "From: {$company_name} <{$candidate['company_email']}>" . "\r\n";
-    $headers .= "Reply-To: {$candidate['company_email']}" . "\r\n";
-    
     // Use enhanced email sending with better error handling
     require_once __DIR__ . '/email_helper.php';
-    $result = send_email_enhanced($to, $subject, $message, $company_name, $candidate['company_email'], $candidate_id);
+    $result = send_email_enhanced($to, $subject, $message, $company_name, 'noreply@hr.qlabs.pk', $candidate_id);
     
     return $result;
 }

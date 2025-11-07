@@ -137,6 +137,32 @@ switch ($action) {
         toggle_super_admin();
         break;
     
+    // === CANDIDATE MANAGEMENT ACTIONS ===
+    case 'accept_candidate':
+        require_once __DIR__ . '/candidate_actions.php';
+        accept_candidate();
+        break;
+        
+    case 'reject_candidate':
+        require_once __DIR__ . '/candidate_actions.php';
+        reject_candidate();
+        break;
+        
+    case 'update_meeting_link':
+        require_once __DIR__ . '/candidate_actions.php';
+        update_meeting_link();
+        break;
+        
+    case 'send_meeting_email':
+        require_once __DIR__ . '/candidate_actions.php';
+        send_meeting_email_action();
+        break;
+        
+    case 'move_to_accepted':
+        require_once __DIR__ . '/candidate_actions.php';
+        move_to_accepted();
+        break;
+    
     default:
         header('HTTP/1.1 404 Not Found');
         echo json_encode(['error' => 'Action not found']);

@@ -18,7 +18,7 @@ if (is_authenticated()) {
     $page = $_GET['page'] ?? 'dashboard';
     
     // Whitelist of allowed pages
-    $allowed_pages = ['dashboard', 'jobs', 'candidates', 'report', 'settings', 'super_admin'];
+    $allowed_pages = ['dashboard', 'jobs', 'candidates', 'report', 'settings', 'super_admin', 'email_logs'];
     
     // Validate page
     if (!in_array($page, $allowed_pages)) {

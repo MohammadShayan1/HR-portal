@@ -118,6 +118,9 @@ $accent_color = get_setting('theme_accent', $user_id) ?? '#0dcaf0';
                     <a href="index.php?page=candidates" class="list-group-item list-group-item-action bg-primary text-white border-0 <?php echo (isset($_GET['page']) && $_GET['page'] == 'candidates') ? 'active' : ''; ?>">
                         <i class="bi bi-people me-2"></i> Candidates
                     </a>
+                    <a href="index.php?page=email_logs" class="list-group-item list-group-item-action bg-primary text-white border-0 <?php echo (isset($_GET['page']) && $_GET['page'] == 'email_logs') ? 'active' : ''; ?>">
+                        <i class="bi bi-envelope-paper me-2"></i> Email Logs
+                    </a>
                     <a href="index.php?page=settings" class="list-group-item list-group-item-action bg-primary text-white border-0 <?php echo (isset($_GET['page']) && $_GET['page'] == 'settings') ? 'active' : ''; ?>">
                         <i class="bi bi-gear me-2"></i> Settings
                     </a>

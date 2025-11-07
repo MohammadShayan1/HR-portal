@@ -299,6 +299,77 @@ try {
         echo "✓ system_settings table already exists\n";
     }
     
+    // Add candidate_status column to candidates table
+    echo "\nAdding candidate_status column to candidates table...\n";
+    try {
+        $pdo->exec("ALTER TABLE candidates ADD COLUMN candidate_status TEXT DEFAULT 'pending'");
+        echo "✓ Added candidate_status column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ candidate_status column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    // Add meeting_link column to candidates table
+    echo "Adding meeting_link column to candidates table...\n";
+    try {
+        $pdo->exec("ALTER TABLE candidates ADD COLUMN meeting_link TEXT");
+        echo "✓ Added meeting_link column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ meeting_link column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    // Add email_sent_at column to candidates table
+    echo "Adding email_sent_at column to candidates table...\n";
+    try {
+        $pdo->exec("ALTER TABLE candidates ADD COLUMN email_sent_at TEXT");
+        echo "✓ Added email_sent_at column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ email_sent_at column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    // Add rejection_reason column to candidates table
+    echo "Adding rejection_reason column to candidates table...\n";
+    try {
+        $pdo->exec("ALTER TABLE candidates ADD COLUMN rejection_reason TEXT");
+        echo "✓ Added rejection_reason column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ rejection_reason column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    // Create email_logs table for tracking email delivery
+    echo "\nCreating email_logs table for email tracking...\n";
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS email_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER NOT NULL,
+            recipient TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            status TEXT NOT NULL,
+            sent_at TEXT NOT NULL,
+            user_agent TEXT,
+            ip_address TEXT,
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id)
+        )");
+        echo "✓ Created email_logs table\n";
+    } catch (PDOException $e) {
+        echo "✓ email_logs table already exists\n";
+    }
+    
     echo "\n✅ Database migration completed successfully!\n";
     echo "\nYou can now delete this migrate.php file.\n";
     

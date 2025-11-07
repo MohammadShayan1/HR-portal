@@ -115,6 +115,19 @@ switch ($action) {
         generate_report_ajax();
         break;
     
+    // === CALENDAR EVENT ACTIONS ===
+    case 'save_calendar_event':
+        save_calendar_event();
+        break;
+    
+    case 'update_event_datetime':
+        update_event_datetime();
+        break;
+    
+    case 'delete_calendar_event':
+        delete_calendar_event();
+        break;
+    
     default:
         header('HTTP/1.1 404 Not Found');
         echo json_encode(['error' => 'Action not found']);
@@ -887,6 +900,199 @@ function generate_report_ajax() {
         ]);
     } catch (Exception $e) {
         ob_end_clean();
+        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+/**
+ * Save calendar event (add or update)
+ */
+function save_calendar_event() {
+    header('Content-Type: application/json');
+    
+    try {
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            echo json_encode(['error' => 'Not authenticated']);
+            exit;
+        }
+        
+        $pdo = get_db();
+        
+        $event_id = $_POST['event_id'] ?? '';
+        $event_type = $_POST['event_type'] ?? 'meeting';
+        $title = trim($_POST['event_title'] ?? '');
+        $description = trim($_POST['event_description'] ?? '');
+        $date = $_POST['event_date'] ?? '';
+        $time = $_POST['event_time'] ?? '';
+        $duration = intval($_POST['event_duration'] ?? 60);
+        $location = trim($_POST['event_location'] ?? '');
+        $sync_google = isset($_POST['sync_google']) ? 1 : 0;
+        $sync_outlook = isset($_POST['sync_outlook']) ? 1 : 0;
+        
+        // Validation
+        if (empty($title) || empty($date) || empty($time)) {
+            echo json_encode(['error' => 'Title, date, and time are required']);
+            exit;
+        }
+        
+        // Combine date and time
+        $event_datetime = $date . ' ' . $time . ':00';
+        
+        // Check if updating existing event
+        if (!empty($event_id)) {
+            // Verify ownership
+            $stmt = $pdo->prepare("SELECT user_id FROM meetings WHERE id = ?");
+            $stmt->execute([$event_id]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$existing || $existing['user_id'] != $user_id) {
+                echo json_encode(['error' => 'Event not found or access denied']);
+                exit;
+            }
+            
+            // Update event
+            $stmt = $pdo->prepare("
+                UPDATE meetings 
+                SET event_type = ?, title = ?, description = ?, meeting_date = ?, 
+                    meeting_time = ?, duration = ?, location = ?, 
+                    sync_google = ?, sync_outlook = ?
+                WHERE id = ? AND user_id = ?
+            ");
+            $stmt->execute([
+                $event_type, $title, $description, $date, $time, 
+                $duration, $location, $sync_google, $sync_outlook, 
+                $event_id, $user_id
+            ]);
+        } else {
+            // Create new event (generic event without candidate)
+            $stmt = $pdo->prepare("
+                INSERT INTO meetings 
+                (user_id, candidate_id, event_type, title, description, meeting_date, meeting_time, 
+                 duration, location, sync_google, sync_outlook, status, created_at)
+                VALUES (?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?)
+            ");
+            $stmt->execute([
+                $user_id, $event_type, $title, $description, $date, $time,
+                $duration, $location, $sync_google, $sync_outlook,
+                date('Y-m-d H:i:s')
+            ]);
+            $event_id = $pdo->lastInsertId();
+        }
+        
+        // TODO: Sync to Google/Outlook calendars if checkboxes are checked
+        // This would require calling the respective API methods
+        
+        echo json_encode(['success' => true, 'event_id' => $event_id]);
+    } catch (Exception $e) {
+        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+/**
+ * Update event date/time (for drag/drop and resize)
+ */
+function update_event_datetime() {
+    header('Content-Type: application/json');
+    
+    try {
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            echo json_encode(['error' => 'Not authenticated']);
+            exit;
+        }
+        
+        $pdo = get_db();
+        
+        $event_id = $_POST['event_id'] ?? '';
+        $start = $_POST['start'] ?? '';
+        $end = $_POST['end'] ?? '';
+        
+        if (empty($event_id) || empty($start)) {
+            echo json_encode(['error' => 'Event ID and start time are required']);
+            exit;
+        }
+        
+        // Verify ownership
+        $stmt = $pdo->prepare("SELECT user_id, meeting_date, meeting_time, duration FROM meetings WHERE id = ?");
+        $stmt->execute([$event_id]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$existing || $existing['user_id'] != $user_id) {
+            echo json_encode(['error' => 'Event not found or access denied']);
+            exit;
+        }
+        
+        // Parse ISO datetime
+        $start_dt = new DateTime($start);
+        $date = $start_dt->format('Y-m-d');
+        $time = $start_dt->format('H:i');
+        
+        // Calculate duration if end time provided
+        $duration = $existing['duration'];
+        if (!empty($end)) {
+            $end_dt = new DateTime($end);
+            $interval = $start_dt->diff($end_dt);
+            $duration = ($interval->h * 60) + $interval->i;
+        }
+        
+        // Update event
+        $stmt = $pdo->prepare("
+            UPDATE meetings 
+            SET meeting_date = ?, meeting_time = ?, duration = ?
+            WHERE id = ? AND user_id = ?
+        ");
+        $stmt->execute([$date, $time, $duration, $event_id, $user_id]);
+        
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+/**
+ * Delete calendar event
+ */
+function delete_calendar_event() {
+    header('Content-Type: application/json');
+    
+    try {
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            echo json_encode(['error' => 'Not authenticated']);
+            exit;
+        }
+        
+        $pdo = get_db();
+        
+        $event_id = $_POST['event_id'] ?? '';
+        
+        if (empty($event_id)) {
+            echo json_encode(['error' => 'Event ID is required']);
+            exit;
+        }
+        
+        // Verify ownership
+        $stmt = $pdo->prepare("SELECT user_id FROM meetings WHERE id = ?");
+        $stmt->execute([$event_id]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$existing || $existing['user_id'] != $user_id) {
+            echo json_encode(['error' => 'Event not found or access denied']);
+            exit;
+        }
+        
+        // Delete event
+        $stmt = $pdo->prepare("DELETE FROM meetings WHERE id = ? AND user_id = ?");
+        $stmt->execute([$event_id, $user_id]);
+        
+        // TODO: Delete from Google/Outlook calendars if synced
+        
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
         echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
     }
     exit;

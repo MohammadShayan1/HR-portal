@@ -332,6 +332,7 @@ $theme_accent = get_setting('theme_accent') ?? '#0dcaf0';
                         </div>
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" id="googleCalendarSync" 
+                                   onchange="saveCalendarSettings()"
                                    <?php echo $google_calendar_sync ? 'checked' : ''; ?>>
                             <label class="form-check-label" for="googleCalendarSync">
                                 Automatically sync meetings to Google Calendar
@@ -373,6 +374,7 @@ $theme_accent = get_setting('theme_accent') ?? '#0dcaf0';
                         </div>
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" id="outlookCalendarSync" 
+                                   onchange="saveCalendarSettings()"
                                    <?php echo $outlook_calendar_sync ? 'checked' : ''; ?>>
                             <label class="form-check-label" for="outlookCalendarSync">
                                 Automatically sync meetings to Outlook Calendar
@@ -622,13 +624,24 @@ function saveCalendarSettings() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Calendar settings saved successfully!');
+                // Show subtle success notification
+                const notification = document.createElement('div');
+                notification.className = 'alert alert-success position-fixed';
+                notification.style = 'top: 20px; right: 20px; z-index: 9999; animation: fadeIn 0.3s;';
+                notification.innerHTML = '<i class="bi bi-check-circle"></i> Calendar settings saved';
+                document.body.appendChild(notification);
+                
+                // Auto-remove after 2 seconds
+                setTimeout(() => {
+                    notification.style.animation = 'fadeOut 0.3s';
+                    setTimeout(() => notification.remove(), 300);
+                }, 2000);
             } else {
                 alert('Error: ' + data.error);
             }
         })
         .catch(error => {
-            alert('Error saving settings: ' + error.message);
+            console.error('Error saving settings:', error);
         });
 }
 </script>

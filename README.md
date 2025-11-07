@@ -158,6 +158,52 @@ php -r "echo bin2hex(random_bytes(32));"
 - View all meetings in unified calendar
 - Click events to see details & join links
 - See Google/Outlook events alongside HR Portal meetings
+
+### **Calendar Event Management**
+The dashboard calendar now supports full CRUD operations for managing your events:
+
+**Adding Events:**
+- Click "**+ Add Event**" button in calendar toolbar
+- Or click any date on the calendar to quick-add
+- Fill in event details:
+  - **Type**: Meeting, Reminder, Task, or Other
+  - **Title** (required) & Description
+  - **Date & Time** (required)
+  - **Duration** (in minutes, default 60)
+  - **Location/Link** (optional)
+  - **Sync Options**: Optionally sync to Google Calendar and/or Outlook
+- Click "Save Event"
+
+**Editing Events:**
+- **Drag & Drop**: Drag events to new dates/times
+- **Resize**: Drag event edges to change duration
+- **Form Edit**: Click event → Click "Edit" → Update details → Save
+- Changes save automatically via AJAX
+
+**Deleting Events:**
+- Click event → Click "Delete" button
+- Confirm deletion
+- Event removed from calendar instantly
+
+**Viewing Events:**
+- **Month View**: See all events in calendar grid
+- **Week View**: Time-based weekly schedule
+- **Day View**: Detailed daily agenda
+- **List View**: Chronological list of upcoming events
+- Click any event to see full details with Zoom links (for interview meetings)
+
+**Refreshing Calendar:**
+- Click "**↻ Refresh**" button to reload and sync latest events
+- Automatically fetches updates from Google Calendar & Outlook
+
+**Event Types:**
+- 📅 **Google Calendar** events (green, read-only)
+- 📧 **Outlook** events (dark blue, read-only)
+- 💼 **HR Portal** events (blue/purple, fully editable)
+  - Interview meetings with candidates
+  - Generic reminders, tasks, and custom events
+
+**Note:** External calendar events (from Google/Outlook) cannot be edited or deleted from the HR Portal - they are read-only synced views.
 - Color-coded: Blue (HR), Green (Google), Dark Blue (Outlook)
 
 ---

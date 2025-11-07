@@ -216,6 +216,61 @@ try {
         }
     }
     
+    // Add event_type column for generic events (meeting, reminder, task, other)
+    echo "Adding event_type column to meetings table...\n";
+    try {
+        $pdo->exec("ALTER TABLE meetings ADD COLUMN event_type TEXT DEFAULT 'meeting'");
+        echo "✓ Added event_type column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ event_type column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    // Add location column for event location/link
+    echo "Adding location column to meetings table...\n";
+    try {
+        $pdo->exec("ALTER TABLE meetings ADD COLUMN location TEXT");
+        echo "✓ Added location column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ location column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    // Add sync flags columns
+    echo "Adding calendar sync flags to meetings table...\n";
+    try {
+        $pdo->exec("ALTER TABLE meetings ADD COLUMN sync_google INTEGER DEFAULT 0");
+        echo "✓ Added sync_google column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ sync_google column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    try {
+        $pdo->exec("ALTER TABLE meetings ADD COLUMN sync_outlook INTEGER DEFAULT 0");
+        echo "✓ Added sync_outlook column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ sync_outlook column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    // Make candidate_id nullable for generic events
+    echo "Note: candidate_id in meetings table should be nullable for generic events.\n";
+    echo "  SQLite doesn't support modifying column constraints easily.\n";
+    echo "  For generic events (not linked to candidates), use NULL or 0 for candidate_id.\n";
+    
     echo "\n✅ Database migration completed successfully!\n";
     echo "\nYou can now delete this migrate.php file.\n";
     

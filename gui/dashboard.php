@@ -36,12 +36,17 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id]);
 $recent_candidates = $stmt->fetchAll();
 
-// Get upcoming meetings for current user
+// Get upcoming meetings for current user (including generic events)
 $stmt = $pdo->prepare("
-    SELECT m.*, c.name as candidate_name, c.email as candidate_email, j.title as job_title
+    SELECT m.*, 
+           c.name as candidate_name, 
+           c.email as candidate_email, 
+           j.title as job_title,
+           COALESCE(m.event_type, 'meeting') as event_type,
+           COALESCE(m.location, '') as location
     FROM meetings m
-    JOIN candidates c ON m.candidate_id = c.id
-    JOIN jobs j ON c.job_id = j.id
+    LEFT JOIN candidates c ON m.candidate_id = c.id
+    LEFT JOIN jobs j ON c.job_id = j.id
     WHERE m.user_id = ?
     ORDER BY m.meeting_date ASC, m.meeting_time ASC
 ");
@@ -51,9 +56,15 @@ $meetings = $stmt->fetchAll();
 // Convert meetings to calendar events format
 $calendar_events = [];
 foreach ($meetings as $meeting) {
+    // Handle both candidate-linked meetings and generic events
+    $event_title = $meeting['title'];
+    if ($meeting['candidate_name']) {
+        $event_title .= ' - ' . $meeting['candidate_name'];
+    }
+    
     $calendar_events[] = [
         'id' => $meeting['id'],
-        'title' => $meeting['title'] . ' - ' . $meeting['candidate_name'],
+        'title' => $event_title,
         'start' => $meeting['meeting_date'] . 'T' . $meeting['meeting_time'],
         'end' => date('Y-m-d\TH:i:s', strtotime($meeting['meeting_date'] . ' ' . $meeting['meeting_time'] . ' +' . $meeting['duration'] . ' minutes')),
         'backgroundColor' => match($meeting['status']) {
@@ -64,12 +75,18 @@ foreach ($meetings as $meeting) {
         },
         'extendedProps' => [
             'source' => 'internal',
+            'event_type' => $meeting['event_type'],
             'candidate_name' => $meeting['candidate_name'],
             'candidate_email' => $meeting['candidate_email'],
             'job_title' => $meeting['job_title'],
+            'description' => $meeting['description'] ?? '',
+            'location' => $meeting['location'],
+            'duration' => $meeting['duration'],
             'zoom_join_url' => $meeting['zoom_join_url'],
             'zoom_start_url' => $meeting['zoom_start_url'],
-            'status' => $meeting['status']
+            'status' => $meeting['status'],
+            'sync_google' => $meeting['sync_google'] ?? 0,
+            'sync_outlook' => $meeting['sync_outlook'] ?? 0
         ]
     ];
 }
@@ -410,17 +427,96 @@ $theme_accent = get_setting('theme_accent') ?? '#f093fb';
 
 <!-- Meeting Details Modal -->
 <div class="modal fade" id="meetingModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-calendar-event"></i> Meeting Details</h5>
+                <h5 class="modal-title" id="modalTitle"><i class="bi bi-calendar-event"></i> Event Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="meetingDetails">
-                <!-- Meeting details will be loaded here -->
+                <!-- Event details will be loaded here -->
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Event Modal -->
+<div class="modal fade" id="eventFormModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventFormTitle"><i class="bi bi-plus-circle"></i> Add Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="eventForm">
+                    <input type="hidden" id="eventId" name="event_id">
+                    <input type="hidden" id="eventSource" name="event_source" value="internal">
+                    
+                    <div class="mb-3">
+                        <label for="eventType" class="form-label">Event Type</label>
+                        <select class="form-select" id="eventType" name="event_type" required>
+                            <option value="meeting">Meeting</option>
+                            <option value="reminder">Reminder</option>
+                            <option value="task">Task</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="eventTitle" class="form-label">Title *</label>
+                        <input type="text" class="form-control" id="eventTitle" name="title" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="eventDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="eventDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="eventDate" class="form-label">Date *</label>
+                            <input type="date" class="form-control" id="eventDate" name="event_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="eventTime" class="form-label">Time *</label>
+                            <input type="time" class="form-control" id="eventTime" name="event_time" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="eventDuration" class="form-label">Duration (minutes)</label>
+                        <input type="number" class="form-control" id="eventDuration" name="duration" value="60" min="15" step="15">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="eventLocation" class="form-label">Location / Link</label>
+                        <input type="text" class="form-control" id="eventLocation" name="location" placeholder="Meeting room or video link">
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="syncToGoogle" name="sync_to_google">
+                        <label class="form-check-label" for="syncToGoogle">
+                            Sync to Google Calendar
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="syncToOutlook" name="sync_to_outlook">
+                        <label class="form-check-label" for="syncToOutlook">
+                            Sync to Outlook Calendar
+                        </label>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveEvent()">
+                    <i class="bi bi-save"></i> Save Event
+                </button>
             </div>
         </div>
     </div>
@@ -439,20 +535,432 @@ document.addEventListener('DOMContentLoaded', function() {
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         headerToolbar: {
-            left: 'prev,next today',
+            left: 'prev,next today addEventButton refreshButton',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+        },
+        customButtons: {
+            addEventButton: {
+                text: '+ Add Event',
+                click: function() {
+                    openEventForm();
+                }
+            },
+            refreshButton: {
+                text: '↻ Refresh',
+                click: function() {
+                    refreshCalendar();
+                }
+            }
         },
         events: <?php echo json_encode($calendar_events); ?>,
+        editable: true,
+        droppable: true,
+        eventDrop: function(info) {
+            // Update event when dragged to new date
+            updateEventDateTime(info.event);
+        },
+        eventResize: function(info) {
+            // Update event when resized
+            updateEventDateTime(info.event);
+        },
+        dateClick: function(info) {
+            // Quick add event on date click
+            openEventForm(info.dateStr);
+        },
         eventClick: function(info) {
-            // Show meeting details in modal
-            var event = info.event;
-            var props = event.extendedProps;
+            // Show event details with edit/delete options
+            showEventDetails(info.event);
+        },
+        eventColor: '<?php echo $theme_primary; ?>',
+        height: 'auto',
+        eventColor: '<?php echo $theme_primary; ?>',
+        height: 'auto',
+        nowIndicator: true,
+        navLinks: true,
+        businessHours: true,
+        dayMaxEvents: 3
+    });
+    
+    calendar.render();
+    
+    // Make calendar globally accessible
+    window.calendarInstance = calendar;
+    
+    // Show event details function
+    function showEventDetails(event) {
+        var props = event.extendedProps;
+        var html = '';
+        var canEdit = props.source === 'internal' || !props.source;
+        
+        // Handle internal meetings (from HR Portal)
+        if (props.source === 'internal') {
+            html = `
+                <div class="mb-3">
+                    <span class="badge bg-primary">HR Portal Meeting</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Title:</strong> ${event.title}
+                </div>
+                <div class="mb-3">
+                    <strong>Candidate:</strong> ${props.candidate_name}<br>
+                    <strong>Email:</strong> ${props.candidate_email}
+                </div>
+                <div class="mb-3">
+                    <strong>Position:</strong> ${props.job_title}
+                </div>
+                <div class="mb-3">
+                    <strong>Date & Time:</strong> ${event.start.toLocaleString()}
+                </div>
+                <div class="mb-3">
+                    <strong>Status:</strong> 
+                    <span class="badge bg-${props.status === 'scheduled' ? 'primary' : props.status === 'completed' ? 'success' : 'danger'}">
+                        ${props.status.charAt(0).toUpperCase() + props.status.slice(1)}
+                    </span>
+                </div>
+            `;
             
-            var html = '';
+            if (props.zoom_join_url) {
+                html += `
+                    <div class="mb-3">
+                        <strong>Join Meeting:</strong><br>
+                        <a href="${props.zoom_join_url}" target="_blank" class="btn btn-sm btn-primary mt-2">
+                            <i class="bi bi-camera-video"></i> Join Zoom Meeting
+                        </a>
+                    </div>
+                `;
+            }
             
-            // Handle internal meetings (from HR Portal)
-            if (props.source === 'internal') {
+            if (props.zoom_start_url) {
+                html += `
+                    <div class="mb-3">
+                        <strong>Start Meeting (Host):</strong><br>
+                        <a href="${props.zoom_start_url}" target="_blank" class="btn btn-sm btn-success mt-2">
+                            <i class="bi bi-play-circle"></i> Start as Host
+                        </a>
+                    </div>
+                `;
+            }
+        }
+        // Handle Google Calendar events
+        else if (props.source === 'google') {
+            html = `
+                <div class="mb-3">
+                    <span class="badge" style="background-color: #34a853;"><i class="bi bi-google"></i> Google Calendar</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Title:</strong> ${event.title.replace('📅 ', '')}
+                </div>
+                <div class="mb-3">
+                    <strong>Date & Time:</strong> ${event.start.toLocaleString()}
+                </div>
+            `;
+            
+            if (props.description) {
+                html += `
+                    <div class="mb-3">
+                        <strong>Description:</strong><br>
+                        ${props.description}
+                    </div>
+                `;
+            }
+            
+            if (props.location) {
+                html += `
+                    <div class="mb-3">
+                        <strong>Location:</strong> ${props.location}
+                    </div>
+                `;
+            }
+            
+            if (props.html_link) {
+                html += `
+                    <div class="mb-3">
+                        <a href="${props.html_link}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-up-right"></i> View in Google Calendar
+                        </a>
+                    </div>
+                `;
+            }
+        }
+        // Handle Outlook Calendar events
+        else if (props.source === 'outlook') {
+            html = `
+                <div class="mb-3">
+                    <span class="badge" style="background-color: #0078d4;"><i class="bi bi-microsoft"></i> Outlook Calendar</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Title:</strong> ${event.title.replace('📧 ', '')}
+                </div>
+                <div class="mb-3">
+                    <strong>Date & Time:</strong> ${event.start.toLocaleString()}
+                </div>
+            `;
+            
+            if (props.description) {
+                html += `
+                    <div class="mb-3">
+                        <strong>Description:</strong><br>
+                        ${props.description.substring(0, 200)}${props.description.length > 200 ? '...' : ''}
+                    </div>
+                `;
+            }
+            
+            if (props.location) {
+                html += `
+                    <div class="mb-3">
+                        <strong>Location:</strong> ${props.location}
+                    </div>
+                `;
+            }
+            
+            if (props.web_link) {
+                html += `
+                    <div class="mb-3">
+                        <a href="${props.web_link}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-up-right"></i> View in Outlook
+                        </a>
+                    </div>
+                `;
+            }
+        }
+        // Handle custom events
+        else {
+            html = `
+                <div class="mb-3">
+                    <span class="badge bg-secondary">Custom Event</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Title:</strong> ${event.title}
+                </div>
+                <div class="mb-3">
+                    <strong>Type:</strong> ${props.event_type || 'Event'}
+                </div>
+                <div class="mb-3">
+                    <strong>Date & Time:</strong> ${event.start.toLocaleString()}
+                </div>
+            `;
+            
+            if (props.description) {
+                html += `<div class="mb-3"><strong>Description:</strong><br>${props.description}</div>`;
+            }
+            
+            if (props.location) {
+                html += `<div class="mb-3"><strong>Location:</strong> ${props.location}</div>`;
+            }
+        }
+        
+        document.getElementById('meetingDetails').innerHTML = html;
+        
+        // Update footer with edit/delete buttons for editable events
+        var footer = '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
+        if (canEdit) {
+            footer = `
+                <button type="button" class="btn btn-danger" onclick="deleteEvent('${event.id}')">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+                <button type="button" class="btn btn-primary" onclick="editEvent('${event.id}')">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            `;
+        }
+        document.getElementById('modalFooter').innerHTML = footer;
+        
+        new bootstrap.Modal(document.getElementById('meetingModal')).show();
+    }
+    
+    // Export to global scope
+    window.showEventDetails = showEventDetails;
+    
+    // Open event form for add or edit
+    window.openEventForm = function(dateStr = null, eventObj = null) {
+        var form = document.getElementById('eventForm');
+        form.reset();
+        
+        if (eventObj) {
+            // Edit mode
+            document.getElementById('eventModalLabel').textContent = 'Edit Event';
+            document.getElementById('event_id').value = eventObj.id;
+            document.getElementById('event_source').value = eventObj.extendedProps.source || 'internal';
+            document.getElementById('event_type').value = eventObj.extendedProps.event_type || 'meeting';
+            document.getElementById('event_title').value = eventObj.title;
+            document.getElementById('event_description').value = eventObj.extendedProps.description || '';
+            
+            var startDate = new Date(eventObj.start);
+            document.getElementById('event_date').value = startDate.toISOString().split('T')[0];
+            document.getElementById('event_time').value = startDate.toTimeString().slice(0, 5);
+            document.getElementById('event_duration').value = eventObj.extendedProps.duration || 60;
+            document.getElementById('event_location').value = eventObj.extendedProps.location || '';
+            
+            document.getElementById('sync_google').checked = eventObj.extendedProps.sync_google || false;
+            document.getElementById('sync_outlook').checked = eventObj.extendedProps.sync_outlook || false;
+        } else {
+            // Add mode
+            document.getElementById('eventModalLabel').textContent = 'Add Event';
+            document.getElementById('event_id').value = '';
+            document.getElementById('event_source').value = 'internal';
+            
+            if (dateStr) {
+                document.getElementById('event_date').value = dateStr;
+            }
+        }
+        
+        new bootstrap.Modal(document.getElementById('eventFormModal')).show();
+    };
+    
+    // Edit existing event
+    window.editEvent = function(eventId) {
+        var event = window.calendarInstance.getEventById(eventId);
+        if (event) {
+            // Close details modal
+            bootstrap.Modal.getInstance(document.getElementById('meetingModal')).hide();
+            // Open form modal
+            openEventForm(null, event);
+        }
+    };
+    
+    // Save event (add or update)
+    window.saveEvent = function() {
+        var form = document.getElementById('eventForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        var formData = new FormData(form);
+        formData.append('action', 'save_calendar_event');
+        
+        fetch('functions/actions.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Event saved successfully!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('eventFormModal')).hide();
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast(data.error || 'Failed to save event', 'danger');
+            }
+        })
+        .catch(error => {
+            showToast('Error saving event', 'danger');
+            console.error('Error:', error);
+        });
+    };
+    
+    // Update event date/time after drag or resize
+    window.updateEventDateTime = function(event) {
+        if (event.extendedProps.source !== 'internal' && event.extendedProps.source) {
+            showToast('Cannot edit external calendar events', 'warning');
+            event.revert();
+            return;
+        }
+        
+        var formData = new FormData();
+        formData.append('action', 'update_event_datetime');
+        formData.append('event_id', event.id);
+        formData.append('start', event.start.toISOString());
+        if (event.end) {
+            formData.append('end', event.end.toISOString());
+        }
+        
+        fetch('functions/actions.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Event updated successfully!', 'success');
+            } else {
+                showToast(data.error || 'Failed to update event', 'danger');
+                event.revert();
+            }
+        })
+        .catch(error => {
+            showToast('Error updating event', 'danger');
+            console.error('Error:', event);
+            event.revert();
+        });
+    };
+    
+    // Delete event
+    window.deleteEvent = function(eventId) {
+        var event = window.calendarInstance.getEventById(eventId);
+        if (!event) return;
+        
+        if (event.extendedProps.source !== 'internal' && event.extendedProps.source) {
+            showToast('Cannot delete external calendar events', 'warning');
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to delete this event?')) {
+            return;
+        }
+        
+        var formData = new FormData();
+        formData.append('action', 'delete_calendar_event');
+        formData.append('event_id', eventId);
+        
+        fetch('functions/actions.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Event deleted successfully!', 'success');
+                event.remove();
+                bootstrap.Modal.getInstance(document.getElementById('meetingModal')).hide();
+            } else {
+                showToast(data.error || 'Failed to delete event', 'danger');
+            }
+        })
+        .catch(error => {
+            showToast('Error deleting event', 'danger');
+            console.error('Error:', error);
+        });
+    };
+    
+    // Refresh calendar
+    window.refreshCalendar = function() {
+        showToast('Refreshing calendar...', 'info');
+        setTimeout(() => location.reload(), 500);
+    };
+    
+    // Toast notification helper
+    function showToast(message, type = 'info') {
+        var toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+        
+        var toastId = 'toast-' + Date.now();
+        var bgClass = type === 'success' ? 'bg-success' : type === 'danger' ? 'bg-danger' : type === 'warning' ? 'bg-warning' : 'bg-info';
+        
+        var toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        var toastEl = document.getElementById(toastId);
+        var toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+        toast.show();
+        
+        toastEl.addEventListener('hidden.bs.toast', function() {
+            toastEl.remove();
+        });
+    }
                 html = `
                     <div class="mb-3">
                         <span class="badge bg-primary">HR Portal Meeting</span>

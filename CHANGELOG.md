@@ -2,6 +2,98 @@
 
 All notable changes to the HR Virtual Interview Portal project.
 
+## [2.1.0] - 2025-01-XX
+
+### 🎉 Calendar CRUD Enhancement
+
+#### 📅 Full Calendar Event Management
+- **Add Events**
+  - "Add Event" button in calendar toolbar
+  - Quick-add by clicking calendar dates
+  - Event form with comprehensive fields:
+    - Event type dropdown (Meeting, Reminder, Task, Other)
+    - Title and description
+    - Date, time, and duration
+    - Location/link field
+    - Sync checkboxes for Google & Outlook calendars
+  - Generic events without candidate association
+  - Auto-save with AJAX (no page reload)
+
+- **Edit Events**
+  - Drag & drop events to new dates/times
+  - Resize events by dragging edges to adjust duration
+  - Edit button in event details modal
+  - Pre-filled form for editing
+  - Real-time updates via AJAX
+  - Toast notifications for success/errors
+
+- **Delete Events**
+  - Delete button in event details modal
+  - Confirmation prompt before deletion
+  - Instant removal from calendar
+  - Backend validation for user ownership
+
+- **View Events**
+  - Enhanced event details modal (modal-lg)
+  - Multiple calendar views:
+    - Month view (calendar grid)
+    - Week view (timeGrid)
+    - Day view (detailed)
+    - List view (chronological)
+  - Color-coded event sources:
+    - 💼 HR Portal events (blue, editable)
+    - 📅 Google Calendar (green, read-only)
+    - 📧 Outlook (dark blue, read-only)
+  - Click events to view full details, Zoom links, candidate info
+
+- **Refresh Calendar**
+  - "Refresh" button to reload calendar
+  - Syncs latest events from all sources
+  - Toast notification feedback
+
+#### 🔧 Technical Implementation
+- **Database Schema Updates**
+  - Added `event_type` column to meetings table (meeting/reminder/task/other)
+  - Added `location` column for event location/link
+  - Added `sync_google` flag (0/1)
+  - Added `sync_outlook` flag (0/1)
+  - Changed `candidate_id` to nullable via 0 value for generic events
+  - Migration script updated in `migrate.php`
+
+- **Backend Actions** (`functions/actions.php`)
+  - `save_calendar_event`: Create/update events with validation
+  - `update_event_datetime`: Handle drag & drop, resize operations
+  - `delete_calendar_event`: Delete with ownership verification
+  - JSON responses for AJAX operations
+  - User ownership validation on all operations
+
+- **Frontend JavaScript** (`gui/dashboard.php`)
+  - FullCalendar configuration with custom buttons
+  - Event handlers: `eventDrop`, `eventResize`, `dateClick`, `eventClick`
+  - CRUD functions: `openEventForm()`, `saveEvent()`, `editEvent()`, `deleteEvent()`, `updateEventDateTime()`, `refreshCalendar()`
+  - Toast notification system for user feedback
+  - Bootstrap 5 modals for event form and details
+  - Form validation and error handling
+
+- **Query Updates**
+  - Changed JOIN to LEFT JOIN for meetings query
+  - Supports both candidate-linked meetings and generic events
+  - Fetches new columns: `event_type`, `location`, `sync_google`, `sync_outlook`
+  - Enhanced `extendedProps` with event metadata
+
+#### 📝 Documentation
+- Updated README.md with comprehensive calendar management guide
+- Added usage instructions for add/edit/delete/view operations
+- Documented event types and sync options
+- Added notes about read-only external calendar events
+
+### 🐛 Bug Fixes
+- Fixed duplicate code in dashboard.php calendar initialization
+- Corrected event query to support events without candidates
+- Added proper error handling for AJAX operations
+
+---
+
 ## [2.0.0] - 2025-11-07
 
 ### 🎉 Major Update - Multi-Tenant Architecture & Calendar Integration

@@ -13,12 +13,6 @@ if (is_authenticated()) {
     exit;
 }
 
-// Check if admin exists, if not redirect to registration
-if (!admin_exists()) {
-    header('Location: register.php');
-    exit;
-}
-
 // Handle login
 $error = '';
 
@@ -37,10 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $page_title = 'Login - HR Portal';
 
-// Get theme colors
-$pdo = get_db();
-$theme_primary = get_setting('theme_primary') ?? '#667eea';
-$theme_secondary = get_setting('theme_secondary') ?? '#764ba2';
+// Use default neutral colors for login page
+$theme_primary = '#667eea';
+$theme_secondary = '#764ba2';
 ?>
 <!DOCTYPE html>
 <html lang="en">

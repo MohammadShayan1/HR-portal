@@ -4,33 +4,45 @@
  */
 $page_title = 'Candidates - HR Portal';
 
-$job_id = $_GET['job_id'] ?? 0;
-
-if ($job_id <= 0) {
-    header('Location: index.php?page=jobs');
-    exit;
-}
-
 $pdo = get_db();
 $user_id = get_current_user_id();
 
-// Get job details - ensure it belongs to current user
-$stmt = $pdo->prepare("SELECT * FROM jobs WHERE id = ? AND user_id = ?");
-$stmt->execute([$job_id, $user_id]);
-$job = $stmt->fetch();
+// Get all jobs for filter dropdown
+$stmt = $pdo->prepare("SELECT id, title FROM jobs WHERE user_id = ? ORDER BY created_at DESC");
+$stmt->execute([$user_id]);
+$all_jobs = $stmt->fetchAll();
 
-if (!$job) {
-    header('Location: index.php?page=jobs');
-    exit;
+// Get selected job filter
+$job_id = $_GET['job_id'] ?? 'all';
+
+// Get job details if specific job is selected
+$job = null;
+if ($job_id !== 'all' && $job_id > 0) {
+    $stmt = $pdo->prepare("SELECT * FROM jobs WHERE id = ? AND user_id = ?");
+    $stmt->execute([$job_id, $user_id]);
+    $job = $stmt->fetch();
 }
 
-// Get all candidates for this job
-$stmt = $pdo->prepare("
-    SELECT * FROM candidates 
-    WHERE job_id = ? 
-    ORDER BY applied_at DESC
-");
-$stmt->execute([$job_id]);
+// Get candidates based on filter
+if ($job_id === 'all') {
+    $stmt = $pdo->prepare("
+        SELECT c.*, j.title as job_title 
+        FROM candidates c
+        JOIN jobs j ON c.job_id = j.id
+        WHERE j.user_id = ?
+        ORDER BY c.applied_at DESC
+    ");
+    $stmt->execute([$user_id]);
+} else {
+    $stmt = $pdo->prepare("
+        SELECT c.*, j.title as job_title 
+        FROM candidates c
+        JOIN jobs j ON c.job_id = j.id
+        WHERE c.job_id = ? AND j.user_id = ?
+        ORDER BY c.applied_at DESC
+    ");
+    $stmt->execute([$job_id, $user_id]);
+}
 $candidates = $stmt->fetchAll();
 
 $show_report_generated = isset($_GET['report_generated']);
@@ -41,15 +53,42 @@ $show_report_generated = isset($_GET['report_generated']);
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="index.php?page=jobs">Jobs</a></li>
-                <li class="breadcrumb-item active"><?php echo sanitize($job['title']); ?></li>
+                <li class="breadcrumb-item active">Candidates</li>
             </ol>
         </nav>
         
-        <h1 class="mb-4">
-            <i class="bi bi-people"></i> Candidates for: <?php echo sanitize($job['title']); ?>
-        </h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">
+                <i class="bi bi-people"></i> Candidates
+                <?php if ($job): ?>
+                    <small class="text-muted">for: <?php echo sanitize($job['title']); ?></small>
+                <?php endif; ?>
+            </h1>
+            
+            <!-- Job Filter -->
+            <div style="min-width: 250px;">
+                <select class="form-select" id="jobFilter" onchange="filterByJob(this.value)">
+                    <option value="all" <?php echo $job_id === 'all' ? 'selected' : ''; ?>>All Jobs</option>
+                    <?php foreach ($all_jobs as $j): ?>
+                        <option value="<?php echo $j['id']; ?>" <?php echo $job_id == $j['id'] ? 'selected' : ''; ?>>
+                            <?php echo sanitize($j['title']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+function filterByJob(jobId) {
+    if (jobId === 'all') {
+        window.location.href = 'index.php?page=candidates';
+    } else {
+        window.location.href = 'index.php?page=candidates&job_id=' + jobId;
+    }
+}
+</script>
 
 <?php if ($show_report_generated): ?>
     <div class="alert alert-success alert-dismissible fade show">
@@ -90,6 +129,9 @@ $show_report_generated = isset($_GET['report_generated']);
                                 <tr>
                                     <th>Name</th>
                                     <th>Email</th>
+                                    <?php if ($job_id === 'all'): ?>
+                                        <th>Job</th>
+                                    <?php endif; ?>
                                     <th>Applied</th>
                                     <th>Status</th>
                                     <th>Resume</th>
@@ -101,6 +143,9 @@ $show_report_generated = isset($_GET['report_generated']);
                                     <tr>
                                         <td><?php echo sanitize($candidate['name']); ?></td>
                                         <td><?php echo sanitize($candidate['email']); ?></td>
+                                        <?php if ($job_id === 'all'): ?>
+                                            <td><?php echo sanitize($candidate['job_title']); ?></td>
+                                        <?php endif; ?>
                                         <td><?php echo format_date($candidate['applied_at']); ?></td>
                                         <td>
                                             <?php

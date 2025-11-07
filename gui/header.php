@@ -4,17 +4,26 @@
  * Includes HTML head, Bootstrap CSS, TinyMCE, sidebar navigation
  */
 $page_title = $page_title ?? 'HR Virtual Interview Portal';
-$logo_path = __DIR__ . '/../assets/uploads/logo.png';
-$has_logo = file_exists($logo_path);
 
 // Get current user
 $current_user = get_logged_in_user();
+$user_id = $current_user['id'] ?? null;
 $company_name = $current_user['company_name'] ?? 'Interview Portal';
 
+// Get user-specific logo path
+$logo_setting = get_setting('logo_path', $user_id);
+if ($logo_setting && file_exists(__DIR__ . '/../' . $logo_setting)) {
+    $logo_path = $logo_setting;
+    $has_logo = true;
+} else {
+    $logo_path = 'assets/uploads/logo_user_' . $user_id . '.png';
+    $has_logo = file_exists(__DIR__ . '/../' . $logo_path);
+}
+
 // Get theme colors from settings or use defaults
-$primary_color = get_setting('theme_primary') ?? '#0d6efd';
-$secondary_color = get_setting('theme_secondary') ?? '#6c757d';
-$accent_color = get_setting('theme_accent') ?? '#0dcaf0';
+$primary_color = get_setting('theme_primary', $user_id) ?? '#0d6efd';
+$secondary_color = get_setting('theme_secondary', $user_id) ?? '#6c757d';
+$accent_color = get_setting('theme_accent', $user_id) ?? '#0dcaf0';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -92,7 +101,7 @@ $accent_color = get_setting('theme_accent') ?? '#0dcaf0';
         <div class="bg-primary" id="sidebar-wrapper">
             <div class="sidebar-heading text-white p-3 border-bottom text-center">
                 <?php if ($has_logo): ?>
-                    <img src="assets/uploads/logo.png" alt="Company Logo" class="img-fluid mb-2" style="max-height: 50px;">
+                    <img src="<?php echo sanitize($logo_path); ?>" alt="Company Logo" class="img-fluid mb-2" style="max-height: 50px;">
                 <?php else: ?>
                     <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> <?php echo sanitize($company_name); ?></h5>
                 <?php endif; ?>
@@ -105,6 +114,9 @@ $accent_color = get_setting('theme_accent') ?? '#0dcaf0';
                     </a>
                     <a href="index.php?page=jobs" class="list-group-item list-group-item-action bg-primary text-white border-0 <?php echo (isset($_GET['page']) && $_GET['page'] == 'jobs') ? 'active' : ''; ?>">
                         <i class="bi bi-briefcase me-2"></i> Jobs
+                    </a>
+                    <a href="index.php?page=candidates" class="list-group-item list-group-item-action bg-primary text-white border-0 <?php echo (isset($_GET['page']) && $_GET['page'] == 'candidates') ? 'active' : ''; ?>">
+                        <i class="bi bi-people me-2"></i> Candidates
                     </a>
                     <a href="index.php?page=settings" class="list-group-item list-group-item-action bg-primary text-white border-0 <?php echo (isset($_GET['page']) && $_GET['page'] == 'settings') ? 'active' : ''; ?>">
                         <i class="bi bi-gear me-2"></i> Settings

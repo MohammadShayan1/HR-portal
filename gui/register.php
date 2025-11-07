@@ -29,6 +29,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $result = register_user($email, $password, $company_name);
         if ($result === true) {
+            // Get the newly created user ID
+            $pdo = get_db();
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch();
+            $new_user_id = $user['id'];
+            
+            // Handle logo upload
+            if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+                $upload_dir = __DIR__ . '/../assets/uploads/';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
+                
+                // Create user-specific logo filename
+                $logo_path = $upload_dir . 'logo_user_' . $new_user_id . '.png';
+                
+                // Validate image
+                $allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'];
+                $file_type = mime_content_type($_FILES['logo']['tmp_name']);
+                
+                if (in_array($file_type, $allowed_types)) {
+                    move_uploaded_file($_FILES['logo']['tmp_name'], $logo_path);
+                    
+                    // Extract colors from logo
+                    require_once __DIR__ . '/../functions/theme.php';
+                    $colors = extract_colors_from_image($logo_path, 3);
+                    set_setting('theme_primary', $colors[0], $new_user_id);
+                    set_setting('theme_secondary', $colors[1] ?? $colors[0], $new_user_id);
+                    set_setting('theme_accent', $colors[2] ?? $colors[0], $new_user_id);
+                    set_setting('logo_path', 'assets/uploads/logo_user_' . $new_user_id . '.png', $new_user_id);
+                }
+            }
+            
             $success = 'Registration successful! You can now login.';
             header('refresh:2;url=login.php');
         } else {
@@ -39,10 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $page_title = 'Register - HR Portal';
 
-// Get theme colors
-$pdo = get_db();
-$theme_primary = get_setting('theme_primary') ?? '#667eea';
-$theme_secondary = get_setting('theme_secondary') ?? '#764ba2';
+// Use default neutral colors for registration page
+$theme_primary = '#667eea';
+$theme_secondary = '#764ba2';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -160,13 +193,24 @@ $theme_secondary = get_setting('theme_secondary') ?? '#764ba2';
                     </div>
                 <?php endif; ?>
                 
-                <form method="POST">
+                <form method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="company_name" class="form-label fw-semibold">
-                            <i class="bi bi-building"></i> Company Name (Optional)
+                            <i class="bi bi-building"></i> Company Name
                         </label>
                         <input type="text" class="form-control" id="company_name" name="company_name" 
-                               placeholder="Your Company Name">
+                               placeholder="Your Company Name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="logo" class="form-label fw-semibold">
+                            <i class="bi bi-image"></i> Company Logo (Optional)
+                        </label>
+                        <input type="file" class="form-control" id="logo" name="logo" 
+                               accept="image/*">
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i> Upload your logo to customize your portal colors
+                        </div>
                     </div>
                     
                     <div class="mb-3">

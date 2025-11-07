@@ -271,10 +271,20 @@ $theme_secondary = get_setting('theme_secondary', $candidate['user_id']) ?? '#76
     let currentQuestion = 0;
     let totalQuestions = 5;
     
+    // Initialize typing analyzer when interview starts
+    let typingAnalyzer = null;
+    
     // Start Interview
     document.getElementById('startBtn').addEventListener('click', async function() {
         document.getElementById('welcomeScreen').style.display = 'none';
         document.getElementById('interviewScreen').style.display = 'block';
+        
+        // Initialize typing analyzer for the answer textarea
+        if (typeof TypingAnalyzer !== 'undefined') {
+            typingAnalyzer = new TypingAnalyzer('answerText');
+            window.typingAnalyzer = typingAnalyzer;
+        }
+        
         await loadNextQuestion();
     });
     

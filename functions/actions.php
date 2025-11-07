@@ -102,15 +102,23 @@ function update_profile() {
  * Save settings (API key and logo)
  */
 function save_settings() {
+    $user_id = get_current_user_id();
+    
     // Save Gemini API key
     if (isset($_POST['gemini_key'])) {
-        set_setting('gemini_key', trim($_POST['gemini_key']));
+        set_setting('gemini_key', trim($_POST['gemini_key']), $user_id);
     }
     
     // Handle logo upload
     if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
         $upload_dir = __DIR__ . '/../assets/uploads/';
-        $logo_path = $upload_dir . 'logo.png';
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0755, true);
+        }
+        
+        // Create user-specific logo filename
+        $logo_filename = 'logo_user_' . $user_id . '.png';
+        $logo_path = $upload_dir . $logo_filename;
         
         // Validate image
         $allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'];
@@ -121,9 +129,10 @@ function save_settings() {
             
             // Extract colors from logo
             $colors = extract_colors_from_image($logo_path, 3);
-            set_setting('theme_primary', $colors[0]);
-            set_setting('theme_secondary', $colors[1] ?? $colors[0]);
-            set_setting('theme_accent', $colors[2] ?? $colors[0]);
+            set_setting('theme_primary', $colors[0], $user_id);
+            set_setting('theme_secondary', $colors[1] ?? $colors[0], $user_id);
+            set_setting('theme_accent', $colors[2] ?? $colors[0], $user_id);
+            set_setting('logo_path', 'assets/uploads/' . $logo_filename, $user_id);
         }
     }
     
@@ -515,6 +524,19 @@ function generate_report_ajax() {
             exit;
         }
         
+        // Check regeneration limit
+        $stmt = $pdo->prepare("SELECT regeneration_count FROM reports WHERE candidate_id = ? ORDER BY generated_at DESC LIMIT 1");
+        $stmt->execute([$candidate_id]);
+        $existing_report = $stmt->fetch();
+        
+        if ($existing_report && $existing_report['regeneration_count'] >= 5) {
+            ob_end_clean();
+            echo json_encode(['error' => 'Maximum regeneration limit (5) reached for this report']);
+            exit;
+        }
+        
+        $regeneration_count = $existing_report ? ($existing_report['regeneration_count'] + 1) : 0;
+        
         // Generate the report
         $report = generate_evaluation_report($candidate_id);
         
@@ -534,16 +556,17 @@ function generate_report_ajax() {
         $stmt = $pdo->prepare("DELETE FROM reports WHERE candidate_id = ?");
         $stmt->execute([$candidate_id]);
         
-        // Save new report to database
+        // Save new report to database with regeneration count
         $stmt = $pdo->prepare("
-            INSERT INTO reports (candidate_id, report_content, score, generated_at) 
-            VALUES (?, ?, ?, ?)
+            INSERT INTO reports (candidate_id, report_content, score, generated_at, regeneration_count) 
+            VALUES (?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             $candidate_id,
             $report['report_content'],
             $report['score'],
-            date('Y-m-d H:i:s')
+            date('Y-m-d H:i:s'),
+            $regeneration_count
         ]);
         
         // Update candidate status

@@ -152,6 +152,19 @@ try {
         }
     }
     
+    // Add regeneration_count to reports table
+    echo "Adding regeneration_count to reports table...\n";
+    try {
+        $pdo->exec("ALTER TABLE reports ADD COLUMN regeneration_count INTEGER DEFAULT 0");
+        echo "✓ Added regeneration_count column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ regeneration_count column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
     echo "\n✅ Database migration completed successfully!\n";
     echo "\nYou can now delete this migrate.php file.\n";
     

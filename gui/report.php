@@ -39,6 +39,11 @@ if (!$report) {
     exit;
 }
 
+// Check regeneration limit
+$regeneration_count = $report['regeneration_count'] ?? 0;
+$regenerations_left = 5 - $regeneration_count;
+$can_regenerate = $regeneration_count < 5;
+
 // Get interview Q&A
 $stmt = $pdo->prepare("SELECT * FROM interview_answers WHERE candidate_id = ? ORDER BY id");
 $stmt->execute([$candidate_id]);
@@ -108,9 +113,16 @@ $qa_pairs = $stmt->fetchAll();
                     <div class="alert alert-warning mb-3">
                         <i class="bi bi-exclamation-triangle"></i> Report generation encountered an issue
                     </div>
-                    <button id="regenerateBtn" class="btn btn-primary" onclick="regenerateReport()">
-                        <i class="bi bi-arrow-clockwise"></i> Regenerate Report
-                    </button>
+                    <?php if ($can_regenerate): ?>
+                        <button id="regenerateBtn" class="btn btn-primary" onclick="regenerateReport()">
+                            <i class="bi bi-arrow-clockwise"></i> Regenerate Report
+                        </button>
+                        <small class="d-block mt-2 text-muted"><?php echo $regenerations_left; ?> regenerations left</small>
+                    <?php else: ?>
+                        <button class="btn btn-secondary" disabled>
+                            <i class="bi bi-x-circle"></i> Regeneration Limit Reached
+                        </button>
+                    <?php endif; ?>
                 <?php else: ?>
                     <div class="display-1 fw-bold 
                         <?php 
@@ -123,9 +135,15 @@ $qa_pairs = $stmt->fetchAll();
                     <p class="text-muted mb-0">out of 100</p>
                     <small class="text-muted">Generated: <?php echo format_date($report['generated_at']); ?></small>
                     <div class="mt-3">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="regenerateReport()">
-                            <i class="bi bi-arrow-clockwise"></i> Regenerate
-                        </button>
+                        <?php if ($can_regenerate): ?>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="regenerateReport()">
+                                <i class="bi bi-arrow-clockwise"></i> Regenerate (<?php echo $regenerations_left; ?> left)
+                            </button>
+                        <?php else: ?>
+                            <button class="btn btn-sm btn-secondary" disabled title="Maximum 5 regenerations reached">
+                                <i class="bi bi-x-circle"></i> Limit Reached
+                            </button>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -136,9 +154,15 @@ $qa_pairs = $stmt->fetchAll();
         <div class="card">
             <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-clipboard-data"></i> AI Evaluation Report</h5>
-                <button class="btn btn-sm btn-light" onclick="regenerateReport()">
-                    <i class="bi bi-arrow-clockwise"></i> Regenerate
-                </button>
+                <?php if ($can_regenerate): ?>
+                    <button class="btn btn-sm btn-light" onclick="regenerateReport()">
+                        <i class="bi bi-arrow-clockwise"></i> Regenerate
+                    </button>
+                <?php else: ?>
+                    <button class="btn btn-sm btn-secondary" disabled title="Maximum 5 regenerations reached">
+                        <i class="bi bi-x-circle"></i> Limit Reached
+                    </button>
+                <?php endif; ?>
             </div>
             <div class="card-body">
                 <div class="report-content">
@@ -263,9 +287,15 @@ $qa_pairs = $stmt->fetchAll();
         <button onclick="window.print()" class="btn btn-outline-primary">
             <i class="bi bi-printer"></i> Print Report
         </button>
-        <button class="btn btn-outline-secondary" onclick="regenerateReport()">
-            <i class="bi bi-arrow-clockwise"></i> Regenerate Report
-        </button>
+        <?php if ($can_regenerate): ?>
+            <button class="btn btn-outline-secondary" onclick="regenerateReport()">
+                <i class="bi bi-arrow-clockwise"></i> Regenerate Report (<?php echo $regenerations_left; ?> left)
+            </button>
+        <?php else: ?>
+            <button class="btn btn-outline-secondary" disabled title="Maximum 5 regenerations reached">
+                <i class="bi bi-x-circle"></i> Regeneration Limit Reached
+            </button>
+        <?php endif; ?>
     </div>
 </div>
 

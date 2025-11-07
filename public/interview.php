@@ -27,7 +27,18 @@ if (!$candidate) {
     die('Invalid interview token');
 }
 
-$logo_path = __DIR__ . '/../assets/uploads/logo.png';
+// Get logo and theme colors from job owner's settings
+$logo_filename = 'logo_user_' . $candidate['user_id'] . '.png';
+$logo_path = __DIR__ . '/../assets/uploads/' . $logo_filename;
+// Check for different extensions
+if (!file_exists($logo_path)) {
+    $logo_filename = 'logo_user_' . $candidate['user_id'] . '.jpg';
+    $logo_path = __DIR__ . '/../assets/uploads/' . $logo_filename;
+}
+if (!file_exists($logo_path)) {
+    $logo_filename = 'logo_user_' . $candidate['user_id'] . '.gif';
+    $logo_path = __DIR__ . '/../assets/uploads/' . $logo_filename;
+}
 $has_logo = file_exists($logo_path);
 $is_completed = in_array($candidate['status'], ['Interview Completed', 'Report Ready']);
 
@@ -129,7 +140,7 @@ $theme_secondary = get_setting('theme_secondary', $candidate['user_id']) ?? '#76
                 <div class="text-center mb-4">
                     <div class="portal-header">
                         <?php if ($has_logo): ?>
-                            <img src="../assets/uploads/logo.png" alt="Company Logo" style="max-height: 60px;">
+                            <img src="../assets/uploads/<?php echo $logo_filename; ?>?<?php echo time(); ?>" alt="Company Logo" style="max-height: 60px;">
                         <?php else: ?>
                             <h2 class="mb-0" style="color: <?php echo $theme_primary; ?>;">
                                 <i class="bi bi-building"></i> Company Name

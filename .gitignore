@@ -4,7 +4,9 @@ db.sqlite
 *.db
 
 # Uploads
-assets/uploads/logo.png
+assets/uploads/logo_user_*.png
+assets/uploads/logo_user_*.jpg
+assets/uploads/logo_user_*.gif
 assets/uploads/resumes/*
 !assets/uploads/.gitkeep
 

@@ -111,7 +111,7 @@ $theme_accent = get_setting('theme_accent') ?? '#0dcaf0';
                         <label for="logo" class="form-label">Company Logo</label>
                         <?php if ($logo_exists): ?>
                             <div class="mb-2">
-                                <img src="assets/uploads/logo.png?<?php echo time(); ?>" 
+                                <img src="<?php echo htmlspecialchars($logo_path); ?>?<?php echo time(); ?>" 
                                      alt="Current Logo" 
                                      style="max-height: 100px; border: 1px solid #ddd; padding: 10px;">
                             </div>

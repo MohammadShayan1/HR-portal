@@ -1,13 +1,8 @@
 <?php
 /**
  * Email Helper Functions
- * Centralized email sending with SMTP support and logging
+ * Centralized email sending with better error handling and logging
  */
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-require_once __DIR__ . '/../vendor/autoload.php';
 
 /**
  * Send email with enhanced error handling and logging
@@ -20,7 +15,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
  * @param int|null $candidate_id Optional candidate ID for logging
  * @return array ['success' => bool, 'error' => string|null]
  */
-function send_email_enhanced($to, $subject, $message, $from_name, $from_email, $candidate_id = null) {
+function send_email_enhanced($to, $subject, $message, $from_name, $from_email = 'noreply@hr.qlabs.pk', $candidate_id = null) {
     // Validate inputs
     if (empty($to) || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
         $error = "Invalid recipient email: $to";
@@ -34,52 +29,26 @@ function send_email_enhanced($to, $subject, $message, $from_name, $from_email, $
         $from_email = 'noreply@hr.qlabs.pk';
     }
     
-    // Use PHPMailer for SMTP sending
-    $mail = new PHPMailer(true);
+    // Build headers
+    $headers = [];
+    $headers[] = "MIME-Version: 1.0";
+    $headers[] = "Content-type: text/html; charset=UTF-8";
+    $headers[] = "From: {$from_name} <{$from_email}>";
+    $headers[] = "Reply-To: {$from_email}";
+    $headers[] = "X-Mailer: PHP/" . phpversion();
     
-    try {
-        // Server settings - Using host SMTP
-        $mail->isSMTP();
-        $mail->Host       = 'mail.qlabs.pk';  // Your hosting SMTP server (usually mail.yourdomain.com)
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'noreply@hr.qlabs.pk';  // Your email account
-        $mail->Password   = '5}]sPk_YW#x=';   // Your email password from cPanel
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;  // Common ports: 587 (TLS), 465 (SSL), or 25
-        
-        // For debugging (enable if needed)
-        // $mail->SMTPDebug = 2;
-
-        // Recipients
-        $mail->setFrom($from_email, $from_name);
-        $mail->addAddress($to);
-        $mail->addReplyTo($from_email, $from_name);
-
-        // Content
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body    = $message;
-        $mail->AltBody = strip_tags($message);
-
-        $mail->send();
-        
-        // Log success
-        if ($candidate_id) {
-            log_email_activity($candidate_id, $to, $subject, 'sent');
-        }
-        
-        return ['success' => true, 'error' => null];
-        
-    } catch (Exception $e) {
-        $error_message = "Email sending failed: {$mail->ErrorInfo}";
-        
-        // Log failure
-        if ($candidate_id) {
-            log_email_activity($candidate_id, $to, $subject, 'failed', $error_message);
-        }
-        
-        return ['success' => false, 'error' => $error_message];
+    // Send email using PHP mail() function
+    $email_sent = @mail($to, $subject, $message, implode("\r\n", $headers));
+    
+    // Log the email attempt
+    if ($candidate_id) {
+        log_email_activity($candidate_id, $to, $subject, $email_sent ? 'sent' : 'failed', $email_sent ? null : 'Mail function returned false');
     }
+    
+    return [
+        'success' => $email_sent,
+        'error' => $email_sent ? null : 'Failed to send email. Please check server configuration.'
+    ];
 }
 
 /**

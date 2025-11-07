@@ -1,8 +1,13 @@
 <?php
 /**
  * Email Helper Functions
- * Centralized email sending with better error handling and logging
+ * Centralized email sending with SMTP support and logging
  */
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once __DIR__ . '/../vendor/autoload.php';
 
 /**
  * Send email with enhanced error handling and logging
@@ -26,51 +31,55 @@ function send_email_enhanced($to, $subject, $message, $from_name, $from_email, $
     }
     
     if (empty($from_email) || !filter_var($from_email, FILTER_VALIDATE_EMAIL)) {
-        $from_email = 'noreply@' . $_SERVER['HTTP_HOST'];
+        $from_email = 'noreply@hr.qlabs.pk';
     }
     
-    // Build headers
-    $headers = "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-type: text/html; charset=UTF-8" . "\r\n";
-    $headers .= "From: $from_name <$from_email>" . "\r\n";
-    $headers .= "Reply-To: $from_email" . "\r\n";
-    $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
+    // Use PHPMailer for SMTP sending
+    $mail = new PHPMailer(true);
     
-    // Clear any previous errors
-    error_clear_last();
-    
-    // Attempt to send email
-    $email_sent = @mail($to, $subject, $message, $headers);
-    
-    // Check for errors
-    $last_error = error_get_last();
-    $error_message = null;
-    
-    if (!$email_sent) {
-        // Check PHP mail configuration
-        $smtp_host = ini_get('SMTP');
-        $smtp_port = ini_get('smtp_port');
-        $sendmail_from = ini_get('sendmail_from');
+    try {
+        // Server settings - Using host SMTP
+        $mail->isSMTP();
+        $mail->Host       = 'mail.qlabs.pk';  // Your hosting SMTP server (usually mail.yourdomain.com)
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'noreply@hr.qlabs.pk';  // Your email account
+        $mail->Password   = '5}]sPk_YW#x=';   // Your email password from cPanel
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;  // Common ports: 587 (TLS), 465 (SSL), or 25
         
-        if (strpos($sendmail_from, 'wampserver.invalid') !== false) {
-            $error_message = "PHP mail() not configured. Please configure SMTP settings in php.ini or use an SMTP library.";
-        } elseif ($last_error) {
-            $error_message = $last_error['message'];
-        } else {
-            $error_message = "mail() function returned false. Check server mail configuration.";
+        // For debugging (enable if needed)
+        // $mail->SMTPDebug = 2;
+
+        // Recipients
+        $mail->setFrom($from_email, $from_name);
+        $mail->addAddress($to);
+        $mail->addReplyTo($from_email, $from_name);
+
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body    = $message;
+        $mail->AltBody = strip_tags($message);
+
+        $mail->send();
+        
+        // Log success
+        if ($candidate_id) {
+            log_email_activity($candidate_id, $to, $subject, 'sent');
         }
+        
+        return ['success' => true, 'error' => null];
+        
+    } catch (Exception $e) {
+        $error_message = "Email sending failed: {$mail->ErrorInfo}";
+        
+        // Log failure
+        if ($candidate_id) {
+            log_email_activity($candidate_id, $to, $subject, 'failed', $error_message);
+        }
+        
+        return ['success' => false, 'error' => $error_message];
     }
-    
-    // Log the email attempt
-    if ($candidate_id) {
-        require_once __DIR__ . '/candidate_actions.php';
-        log_email_activity($candidate_id, $to, $subject, $email_sent ? 'sent' : 'failed', $error_message);
-    }
-    
-    return [
-        'success' => $email_sent,
-        'error' => $error_message
-    ];
 }
 
 /**

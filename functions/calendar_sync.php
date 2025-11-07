@@ -238,10 +238,18 @@ function fetch_outlook_calendar_events($user_id, $time_min = null, $time_max = n
  * Test Google Calendar connection
  */
 function test_google_calendar_connection($user_id) {
-    $access_token = get_setting('google_calendar_token', $user_id);
+    $encrypted_token = get_setting('google_calendar_token', $user_id);
     
-    if (empty($access_token)) {
+    if (empty($encrypted_token)) {
         return ['error' => 'Google Calendar access token not configured'];
+    }
+    
+    // Decrypt the token
+    require_once __DIR__ . '/security.php';
+    $access_token = decrypt_data($encrypted_token);
+    
+    if (!$access_token) {
+        return ['error' => 'Failed to decrypt access token. Please reconnect your account.'];
     }
     
     $ch = curl_init();
@@ -250,10 +258,16 @@ function test_google_calendar_connection($user_id) {
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . $access_token
     ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
     curl_close($ch);
+    
+    if ($curl_error) {
+        return ['error' => 'Connection failed: ' . $curl_error];
+    }
     
     if ($http_code === 200) {
         $result = json_decode($response, true);
@@ -270,10 +284,18 @@ function test_google_calendar_connection($user_id) {
  * Test Microsoft Outlook connection
  */
 function test_outlook_calendar_connection($user_id) {
-    $access_token = get_setting('outlook_calendar_token', $user_id);
+    $encrypted_token = get_setting('outlook_calendar_token', $user_id);
     
-    if (empty($access_token)) {
+    if (empty($encrypted_token)) {
         return ['error' => 'Microsoft Outlook access token not configured'];
+    }
+    
+    // Decrypt the token
+    require_once __DIR__ . '/security.php';
+    $access_token = decrypt_data($encrypted_token);
+    
+    if (!$access_token) {
+        return ['error' => 'Failed to decrypt access token. Please reconnect your account.'];
     }
     
     $ch = curl_init();
@@ -282,10 +304,16 @@ function test_outlook_calendar_connection($user_id) {
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . $access_token
     ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
     curl_close($ch);
+    
+    if ($curl_error) {
+        return ['error' => 'Connection failed: ' . $curl_error];
+    }
     
     if ($http_code === 200) {
         $result = json_decode($response, true);

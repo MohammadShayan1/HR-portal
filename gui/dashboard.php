@@ -36,6 +36,91 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id]);
 $recent_candidates = $stmt->fetchAll();
 
+// Get upcoming meetings for current user
+$stmt = $pdo->prepare("
+    SELECT m.*, c.name as candidate_name, c.email as candidate_email, j.title as job_title
+    FROM meetings m
+    JOIN candidates c ON m.candidate_id = c.id
+    JOIN jobs j ON c.job_id = j.id
+    WHERE m.user_id = ?
+    ORDER BY m.meeting_date ASC, m.meeting_time ASC
+");
+$stmt->execute([$user_id]);
+$meetings = $stmt->fetchAll();
+
+// Convert meetings to calendar events format
+$calendar_events = [];
+foreach ($meetings as $meeting) {
+    $calendar_events[] = [
+        'id' => $meeting['id'],
+        'title' => $meeting['title'] . ' - ' . $meeting['candidate_name'],
+        'start' => $meeting['meeting_date'] . 'T' . $meeting['meeting_time'],
+        'end' => date('Y-m-d\TH:i:s', strtotime($meeting['meeting_date'] . ' ' . $meeting['meeting_time'] . ' +' . $meeting['duration'] . ' minutes')),
+        'backgroundColor' => match($meeting['status']) {
+            'scheduled' => '#667eea',
+            'completed' => '#10b981',
+            'cancelled' => '#ef4444',
+            default => '#6b7280'
+        },
+        'extendedProps' => [
+            'source' => 'internal',
+            'candidate_name' => $meeting['candidate_name'],
+            'candidate_email' => $meeting['candidate_email'],
+            'job_title' => $meeting['job_title'],
+            'zoom_join_url' => $meeting['zoom_join_url'],
+            'zoom_start_url' => $meeting['zoom_start_url'],
+            'status' => $meeting['status']
+        ]
+    ];
+}
+
+// Fetch Google Calendar events if connected
+require_once __DIR__ . '/../functions/calendar_sync.php';
+$google_sync_enabled = get_setting('google_calendar_sync', $user_id) === '1';
+if ($google_sync_enabled) {
+    $google_events = fetch_google_calendar_events($user_id);
+    if (isset($google_events['items'])) {
+        foreach ($google_events['items'] as $event) {
+            $calendar_events[] = [
+                'id' => 'google_' . $event['id'],
+                'title' => '📅 ' . ($event['summary'] ?? 'Untitled'),
+                'start' => $event['start']['dateTime'] ?? $event['start']['date'],
+                'end' => $event['end']['dateTime'] ?? $event['end']['date'],
+                'backgroundColor' => '#34a853',
+                'extendedProps' => [
+                    'source' => 'google',
+                    'description' => $event['description'] ?? '',
+                    'location' => $event['location'] ?? '',
+                    'html_link' => $event['htmlLink'] ?? ''
+                ]
+            ];
+        }
+    }
+}
+
+// Fetch Outlook Calendar events if connected
+$outlook_sync_enabled = get_setting('outlook_calendar_sync', $user_id) === '1';
+if ($outlook_sync_enabled) {
+    $outlook_events = fetch_outlook_calendar_events($user_id);
+    if (isset($outlook_events['value'])) {
+        foreach ($outlook_events['value'] as $event) {
+            $calendar_events[] = [
+                'id' => 'outlook_' . $event['id'],
+                'title' => '📧 ' . ($event['subject'] ?? 'Untitled'),
+                'start' => $event['start']['dateTime'],
+                'end' => $event['end']['dateTime'],
+                'backgroundColor' => '#0078d4',
+                'extendedProps' => [
+                    'source' => 'outlook',
+                    'description' => strip_tags($event['body']['content'] ?? ''),
+                    'location' => $event['location']['displayName'] ?? '',
+                    'web_link' => $event['webLink'] ?? ''
+                ]
+            ];
+        }
+    }
+}
+
 // Get theme colors
 $theme_primary = get_setting('theme_primary') ?? '#667eea';
 $theme_secondary = get_setting('theme_secondary') ?? '#764ba2';
@@ -210,6 +295,22 @@ $theme_accent = get_setting('theme_accent') ?? '#f093fb';
 </div>
 
 <div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-calendar3"></i> Meeting Calendar</h5>
+                    <span class="badge bg-primary"><?php echo count($meetings); ?> scheduled</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white border-0 py-3">
@@ -298,3 +399,190 @@ $theme_accent = get_setting('theme_accent') ?? '#f093fb';
         </div>
     </div>
 </div>
+
+<!-- Meeting Details Modal -->
+<div class="modal fade" id="meetingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-calendar-event"></i> Meeting Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="meetingDetails">
+                <!-- Meeting details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FullCalendar CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+
+<!-- FullCalendar JS -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: <?php echo json_encode($calendar_events); ?>,
+        eventClick: function(info) {
+            // Show meeting details in modal
+            var event = info.event;
+            var props = event.extendedProps;
+            
+            var html = '';
+            
+            // Handle internal meetings (from HR Portal)
+            if (props.source === 'internal') {
+                html = `
+                    <div class="mb-3">
+                        <span class="badge bg-primary">HR Portal Meeting</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Title:</strong> ${event.title}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Candidate:</strong> ${props.candidate_name}<br>
+                        <strong>Email:</strong> ${props.candidate_email}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Position:</strong> ${props.job_title}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Date & Time:</strong> ${event.start.toLocaleString()}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Status:</strong> 
+                        <span class="badge bg-${props.status === 'scheduled' ? 'primary' : props.status === 'completed' ? 'success' : 'danger'}">
+                            ${props.status.charAt(0).toUpperCase() + props.status.slice(1)}
+                        </span>
+                    </div>
+                `;
+                
+                if (props.zoom_join_url) {
+                    html += `
+                        <div class="mb-3">
+                            <strong>Join Meeting:</strong><br>
+                            <a href="${props.zoom_join_url}" target="_blank" class="btn btn-sm btn-primary mt-2">
+                                <i class="bi bi-camera-video"></i> Join Zoom Meeting
+                            </a>
+                        </div>
+                    `;
+                }
+                
+                if (props.zoom_start_url) {
+                    html += `
+                        <div class="mb-3">
+                            <strong>Start Meeting (Host):</strong><br>
+                            <a href="${props.zoom_start_url}" target="_blank" class="btn btn-sm btn-success mt-2">
+                                <i class="bi bi-play-circle"></i> Start as Host
+                            </a>
+                        </div>
+                    `;
+                }
+            }
+            // Handle Google Calendar events
+            else if (props.source === 'google') {
+                html = `
+                    <div class="mb-3">
+                        <span class="badge" style="background-color: #34a853;"><i class="bi bi-google"></i> Google Calendar</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Title:</strong> ${event.title.replace('📅 ', '')}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Date & Time:</strong> ${event.start.toLocaleString()}
+                    </div>
+                `;
+                
+                if (props.description) {
+                    html += `
+                        <div class="mb-3">
+                            <strong>Description:</strong><br>
+                            ${props.description}
+                        </div>
+                    `;
+                }
+                
+                if (props.location) {
+                    html += `
+                        <div class="mb-3">
+                            <strong>Location:</strong> ${props.location}
+                        </div>
+                    `;
+                }
+                
+                if (props.html_link) {
+                    html += `
+                        <div class="mb-3">
+                            <a href="${props.html_link}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-box-arrow-up-right"></i> View in Google Calendar
+                            </a>
+                        </div>
+                    `;
+                }
+            }
+            // Handle Outlook Calendar events
+            else if (props.source === 'outlook') {
+                html = `
+                    <div class="mb-3">
+                        <span class="badge" style="background-color: #0078d4;"><i class="bi bi-microsoft"></i> Outlook Calendar</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Title:</strong> ${event.title.replace('📧 ', '')}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Date & Time:</strong> ${event.start.toLocaleString()}
+                    </div>
+                `;
+                
+                if (props.description) {
+                    html += `
+                        <div class="mb-3">
+                            <strong>Description:</strong><br>
+                            ${props.description.substring(0, 200)}${props.description.length > 200 ? '...' : ''}
+                        </div>
+                    `;
+                }
+                
+                if (props.location) {
+                    html += `
+                        <div class="mb-3">
+                            <strong>Location:</strong> ${props.location}
+                        </div>
+                    `;
+                }
+                
+                if (props.web_link) {
+                    html += `
+                        <div class="mb-3">
+                            <a href="${props.web_link}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-box-arrow-up-right"></i> View in Outlook
+                            </a>
+                        </div>
+                    `;
+                }
+            }
+            
+            document.getElementById('meetingDetails').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('meetingModal')).show();
+        },
+        eventColor: '<?php echo $theme_primary; ?>',
+        height: 'auto',
+        aspectRatio: 2
+    });
+    
+    calendar.render();
+});
+</script>

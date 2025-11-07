@@ -23,6 +23,8 @@ $jobs = $stmt->fetchAll();
 $show_success = isset($_GET['success']);
 $show_deleted = isset($_GET['deleted']);
 $show_error = isset($_GET['error']);
+$linkedin_posted = isset($_GET['linkedin']) && $_GET['linkedin'] === 'posted';
+$linkedin_failed = isset($_GET['linkedin']) && $_GET['linkedin'] === 'failed';
 ?>
 
 <div class="row">
@@ -31,9 +33,19 @@ $show_error = isset($_GET['error']);
     </div>
 </div>
 
-<?php if ($show_success): ?>
+<?php if ($show_success && $linkedin_posted): ?>
     <div class="alert alert-success alert-dismissible fade show">
-        Job created successfully!
+        <i class="bi bi-check-circle"></i> Job created successfully and posted to LinkedIn!
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php elseif ($show_success && $linkedin_failed): ?>
+    <div class="alert alert-warning alert-dismissible fade show">
+        <i class="bi bi-exclamation-triangle"></i> Job created successfully, but LinkedIn posting failed. Check your LinkedIn settings.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php elseif ($show_success): ?>
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle"></i> Job created successfully!
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>

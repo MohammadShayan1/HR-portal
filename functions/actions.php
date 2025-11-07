@@ -9,6 +9,9 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/theme.php';
+require_once __DIR__ . '/linkedin.php';
+require_once __DIR__ . '/zoom.php';
+require_once __DIR__ . '/calendar_sync.php';
 
 // Get action from query parameter
 $action = $_GET['action'] ?? '';
@@ -35,6 +38,46 @@ switch ($action) {
         
     case 'save_settings':
         save_settings();
+        break;
+    
+    case 'save_linkedin_settings':
+        save_linkedin_settings();
+        break;
+    
+    case 'test_linkedin':
+        test_linkedin_connection_ajax();
+        break;
+    
+    case 'save_zoom_settings':
+        save_zoom_settings();
+        break;
+    
+    case 'test_zoom':
+        test_zoom_connection_ajax();
+        break;
+    
+    case 'schedule_meeting':
+        schedule_meeting();
+        break;
+    
+    case 'test_google_calendar':
+        test_google_calendar_ajax();
+        break;
+    
+    case 'test_outlook_calendar':
+        test_outlook_calendar_ajax();
+        break;
+    
+    case 'disconnect_google_calendar':
+        disconnect_google_calendar();
+        break;
+    
+    case 'disconnect_outlook_calendar':
+        disconnect_outlook_calendar();
+        break;
+    
+    case 'save_calendar_settings':
+        save_calendar_settings();
         break;
     
     // === JOB ACTIONS ===
@@ -141,6 +184,245 @@ function save_settings() {
 }
 
 /**
+ * Save LinkedIn settings
+ */
+function save_linkedin_settings() {
+    $user_id = get_current_user_id();
+    
+    $linkedin_access_token = trim($_POST['linkedin_access_token'] ?? '');
+    $linkedin_org_id = trim($_POST['linkedin_org_id'] ?? '');
+    $linkedin_auto_post = isset($_POST['linkedin_auto_post']) ? '1' : '0';
+    
+    // Save LinkedIn settings
+    if (!empty($linkedin_access_token)) {
+        set_setting('linkedin_access_token', $linkedin_access_token, $user_id);
+    }
+    
+    if (!empty($linkedin_org_id)) {
+        set_setting('linkedin_org_id', $linkedin_org_id, $user_id);
+    }
+    
+    set_setting('linkedin_auto_post', $linkedin_auto_post, $user_id);
+    
+    header('Location: ../index.php?page=settings&success=1');
+    exit;
+}
+
+/**
+ * Test LinkedIn connection via AJAX
+ */
+function test_linkedin_connection_ajax() {
+    header('Content-Type: application/json');
+    
+    $user_id = get_current_user_id();
+    $result = test_linkedin_connection($user_id);
+    
+    echo json_encode($result);
+    exit;
+}
+
+/**
+ * Save Zoom settings
+ */
+function save_zoom_settings() {
+    $user_id = get_current_user_id();
+    
+    $zoom_api_key = trim($_POST['zoom_api_key'] ?? '');
+    $zoom_api_secret = trim($_POST['zoom_api_secret'] ?? '');
+    
+    // Save Zoom settings
+    if (!empty($zoom_api_key)) {
+        set_setting('zoom_api_key', $zoom_api_key, $user_id);
+    }
+    
+    if (!empty($zoom_api_secret)) {
+        set_setting('zoom_api_secret', $zoom_api_secret, $user_id);
+    }
+    
+    header('Location: ../index.php?page=settings&success=1');
+    exit;
+}
+
+/**
+ * Test Zoom connection via AJAX
+ */
+function test_zoom_connection_ajax() {
+    header('Content-Type: application/json');
+    
+    $user_id = get_current_user_id();
+    $result = test_zoom_connection($user_id);
+    
+    echo json_encode($result);
+    exit;
+}
+
+/**
+ * Schedule meeting with candidate
+ */
+function schedule_meeting() {
+    header('Content-Type: application/json');
+    
+    $user_id = get_current_user_id();
+    $candidate_id = (int)($_POST['candidate_id'] ?? 0);
+    $title = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $meeting_date = trim($_POST['meeting_date'] ?? '');
+    $meeting_time = trim($_POST['meeting_time'] ?? '');
+    $duration = (int)($_POST['duration'] ?? 30);
+    
+    if (!$candidate_id || !$title || !$meeting_date || !$meeting_time) {
+        echo json_encode(['error' => 'All fields are required']);
+        exit;
+    }
+    
+    $pdo = get_db();
+    
+    // Verify candidate belongs to user's job
+    $stmt = $pdo->prepare("
+        SELECT c.*, j.title as job_title 
+        FROM candidates c 
+        JOIN jobs j ON c.job_id = j.id 
+        WHERE c.id = ? AND j.user_id = ?
+    ");
+    $stmt->execute([$candidate_id, $user_id]);
+    $candidate = $stmt->fetch();
+    
+    if (!$candidate) {
+        echo json_encode(['error' => 'Candidate not found']);
+        exit;
+    }
+    
+    // Create Zoom meeting
+    $start_time = $meeting_date . 'T' . $meeting_time . ':00';
+    $zoom_result = create_zoom_meeting($title, $start_time, $duration, $user_id);
+    
+    if (isset($zoom_result['error'])) {
+        echo json_encode(['error' => 'Failed to create Zoom meeting: ' . $zoom_result['error']]);
+        exit;
+    }
+    
+    // Save meeting to database
+    $stmt = $pdo->prepare("
+        INSERT INTO meetings (user_id, candidate_id, title, description, meeting_date, meeting_time, duration, 
+                             zoom_meeting_id, zoom_join_url, zoom_start_url, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', CURRENT_TIMESTAMP)
+    ");
+    $stmt->execute([
+        $user_id,
+        $candidate_id,
+        $title,
+        $description,
+        $meeting_date,
+        $meeting_time,
+        $duration,
+        $zoom_result['meeting_id'],
+        $zoom_result['join_url'],
+        $zoom_result['start_url']
+    ]);
+    
+    $meeting_id = $pdo->lastInsertId();
+    
+    // Sync to Google Calendar and Outlook if enabled
+    $meeting_data = [
+        'meeting_id' => $meeting_id,
+        'title' => $title,
+        'description' => $description,
+        'meeting_date' => $meeting_date,
+        'meeting_time' => $meeting_time,
+        'duration' => $duration,
+        'zoom_join_url' => $zoom_result['join_url'],
+        'zoom_start_url' => $zoom_result['start_url'],
+        'candidate_name' => $candidate['name'],
+        'candidate_email' => $candidate['email']
+    ];
+    
+    $sync_results = sync_meeting_to_calendars($meeting_data, $user_id);
+    
+    // TODO: Send email notification to candidate with meeting details
+    
+    echo json_encode([
+        'success' => true,
+        'meeting_id' => $meeting_id,
+        'zoom_join_url' => $zoom_result['join_url'],
+        'calendar_sync' => $sync_results
+    ]);
+    exit;
+}
+
+/**
+ * Test Google Calendar connection
+ */
+function test_google_calendar_ajax() {
+    header('Content-Type: application/json');
+    
+    $user_id = get_current_user_id();
+    $result = test_google_calendar_connection($user_id);
+    
+    echo json_encode($result);
+    exit;
+}
+
+/**
+ * Test Outlook Calendar connection
+ */
+function test_outlook_calendar_ajax() {
+    header('Content-Type: application/json');
+    
+    $user_id = get_current_user_id();
+    $result = test_outlook_calendar_connection($user_id);
+    
+    echo json_encode($result);
+    exit;
+}
+
+/**
+ * Disconnect Google Calendar
+ */
+function disconnect_google_calendar() {
+    header('Content-Type: application/json');
+    
+    $user_id = get_current_user_id();
+    set_setting('google_calendar_token', '', $user_id);
+    set_setting('google_calendar_sync', '0', $user_id);
+    
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+/**
+ * Disconnect Outlook Calendar
+ */
+function disconnect_outlook_calendar() {
+    header('Content-Type: application/json');
+    
+    $user_id = get_current_user_id();
+    set_setting('outlook_calendar_token', '', $user_id);
+    set_setting('outlook_calendar_sync', '0', $user_id);
+    
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+/**
+ * Save calendar settings
+ */
+function save_calendar_settings() {
+    header('Content-Type: application/json');
+    
+    $user_id = get_current_user_id();
+    $timezone = trim($_POST['timezone'] ?? 'UTC');
+    $google_sync = isset($_POST['google_calendar_sync']) && $_POST['google_calendar_sync'] === '1' ? '1' : '0';
+    $outlook_sync = isset($_POST['outlook_calendar_sync']) && $_POST['outlook_calendar_sync'] === '1' ? '1' : '0';
+    
+    set_setting('timezone', $timezone, $user_id);
+    set_setting('google_calendar_sync', $google_sync, $user_id);
+    set_setting('outlook_calendar_sync', $outlook_sync, $user_id);
+    
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+/**
  * Generate job description via AJAX
  */
 function generate_job_desc_ajax() {
@@ -180,8 +462,27 @@ function create_job() {
     $pdo = get_db();
     $stmt = $pdo->prepare("INSERT INTO jobs (user_id, title, description, created_at) VALUES (?, ?, ?, ?)");
     $stmt->execute([$user_id, $title, $description, date('Y-m-d H:i:s')]);
+    $job_id = $pdo->lastInsertId();
     
-    header('Location: ../index.php?page=jobs&success=created');
+    // Check if LinkedIn auto-post is enabled
+    $linkedin_auto_post = get_setting('linkedin_auto_post', $user_id) === '1';
+    
+    if ($linkedin_auto_post) {
+        // Get application URL
+        $apply_url = get_base_url() . 'public/apply.php?job_id=' . $job_id;
+        
+        // Post to LinkedIn
+        $linkedin_result = post_job_to_linkedin($title, $description, $apply_url, $user_id);
+        
+        if ($linkedin_result['success']) {
+            header('Location: ../index.php?page=jobs&success=created&linkedin=posted');
+        } else {
+            header('Location: ../index.php?page=jobs&success=created&linkedin=failed');
+        }
+    } else {
+        header('Location: ../index.php?page=jobs&success=created');
+    }
+    
     exit;
 }
 

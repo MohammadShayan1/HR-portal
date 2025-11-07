@@ -165,6 +165,57 @@ try {
         }
     }
     
+    // Create meetings table
+    echo "Creating meetings table...\n";
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS meetings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            candidate_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            meeting_date TEXT NOT NULL,
+            meeting_time TEXT NOT NULL,
+            duration INTEGER DEFAULT 60,
+            zoom_meeting_id TEXT,
+            zoom_join_url TEXT,
+            zoom_start_url TEXT,
+            google_event_id TEXT,
+            outlook_event_id TEXT,
+            status TEXT DEFAULT 'scheduled',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id)
+        )");
+        echo "✓ Created meetings table\n";
+    } catch (PDOException $e) {
+        echo "✓ Meetings table already exists\n";
+    }
+    
+    // Add Google and Outlook event ID columns if they don't exist
+    echo "Adding calendar sync columns to meetings table...\n";
+    try {
+        $pdo->exec("ALTER TABLE meetings ADD COLUMN google_event_id TEXT");
+        echo "✓ Added google_event_id column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ google_event_id column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    try {
+        $pdo->exec("ALTER TABLE meetings ADD COLUMN outlook_event_id TEXT");
+        echo "✓ Added outlook_event_id column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ outlook_event_id column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
     echo "\n✅ Database migration completed successfully!\n";
     echo "\nYou can now delete this migrate.php file.\n";
     
@@ -172,3 +223,4 @@ try {
     echo "\n❌ Migration failed: " . $e->getMessage() . "\n";
     exit(1);
 }
+

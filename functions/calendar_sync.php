@@ -8,15 +8,12 @@
  * Add event to Google Calendar
  */
 function add_to_google_calendar($meeting_data, $user_id) {
-    $encrypted_token = get_setting('google_calendar_token', $user_id);
+    // Get valid access token (auto-refreshes if needed)
+    $access_token = get_google_access_token($user_id);
     
-    if (empty($encrypted_token)) {
+    if (!$access_token) {
         return ['error' => 'Google Calendar not connected'];
     }
-    
-    // Decrypt the access token (SECURITY ENHANCEMENT)
-    require_once __DIR__ . '/security.php';
-    $access_token = decrypt_data($encrypted_token);
     
     // Prepare event data
     $start_datetime = $meeting_data['meeting_date'] . 'T' . $meeting_data['meeting_time'] . ':00';
@@ -163,18 +160,11 @@ function add_to_outlook_calendar($meeting_data, $user_id) {
  * Fetch events from Google Calendar
  */
 function fetch_google_calendar_events($user_id, $time_min = null, $time_max = null) {
-    $encrypted_token = get_setting('google_calendar_token', $user_id);
-    
-    if (empty($encrypted_token)) {
-        return ['error' => 'Google Calendar not connected'];
-    }
-    
-    // Decrypt the token
-    require_once __DIR__ . '/security.php';
-    $access_token = decrypt_data($encrypted_token);
+    // Get valid access token (auto-refreshes if needed)
+    $access_token = get_google_access_token($user_id);
     
     if (!$access_token) {
-        return ['error' => 'Failed to decrypt token. Please reconnect Google Calendar.'];
+        return ['error' => 'Google Calendar not connected'];
     }
     
     $time_min = $time_min ?: date('c', strtotime('-30 days'));
@@ -256,18 +246,11 @@ function fetch_outlook_calendar_events($user_id, $time_min = null, $time_max = n
  * Test Google Calendar connection
  */
 function test_google_calendar_connection($user_id) {
-    $encrypted_token = get_setting('google_calendar_token', $user_id);
-    
-    if (empty($encrypted_token)) {
-        return ['error' => 'Google Calendar access token not configured'];
-    }
-    
-    // Decrypt the token
-    require_once __DIR__ . '/security.php';
-    $access_token = decrypt_data($encrypted_token);
+    // Get valid access token (auto-refreshes if needed)
+    $access_token = get_google_access_token($user_id);
     
     if (!$access_token) {
-        return ['error' => 'Failed to decrypt access token. Please reconnect your account.'];
+        return ['error' => 'Google Calendar access token not configured'];
     }
     
     $ch = curl_init();
@@ -379,4 +362,93 @@ function sync_meeting_to_calendars($meeting_data, $user_id) {
     }
     
     return $results;
+}
+
+/**
+ * Refresh Google Calendar access token using refresh token
+ */
+function refresh_google_access_token($user_id) {
+    require_once __DIR__ . '/system_settings.php';
+    require_once __DIR__ . '/security.php';
+    
+    $encrypted_refresh_token = get_setting('google_calendar_refresh_token', $user_id);
+    
+    if (empty($encrypted_refresh_token)) {
+        return false;
+    }
+    
+    $refresh_token = decrypt_data($encrypted_refresh_token);
+    
+    if (!$refresh_token) {
+        return false;
+    }
+    
+    $google_config = get_google_oauth_config();
+    $client_id = $google_config['client_id'];
+    $client_secret = $google_config['client_secret'];
+    
+    if (empty($client_id) || empty($client_secret)) {
+        return false;
+    }
+    
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, 'https://oauth2.googleapis.com/token');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+        'client_id' => $client_id,
+        'client_secret' => $client_secret,
+        'refresh_token' => $refresh_token,
+        'grant_type' => 'refresh_token'
+    ]));
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($http_code === 200) {
+        $result = json_decode($response, true);
+        
+        if (isset($result['access_token'])) {
+            // Encrypt and save the new access token
+            $encrypted_token = encrypt_data($result['access_token']);
+            set_setting('google_calendar_token', $encrypted_token, $user_id);
+            
+            // Update token expiry time (tokens are valid for 1 hour)
+            set_setting('google_calendar_token_expiry', time() + 3600, $user_id);
+            
+            return $result['access_token'];
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Get valid Google access token (auto-refresh if expired)
+ */
+function get_google_access_token($user_id) {
+    require_once __DIR__ . '/security.php';
+    
+    $encrypted_token = get_setting('google_calendar_token', $user_id);
+    $token_expiry = get_setting('google_calendar_token_expiry', $user_id);
+    
+    if (empty($encrypted_token)) {
+        return false;
+    }
+    
+    // Check if token is expired or will expire soon (5 min buffer)
+    if (!empty($token_expiry) && $token_expiry < (time() + 300)) {
+        // Try to refresh the token
+        $new_token = refresh_google_access_token($user_id);
+        if ($new_token) {
+            return $new_token;
+        }
+    }
+    
+    // Return existing token
+    $access_token = decrypt_data($encrypted_token);
+    return $access_token;
 }

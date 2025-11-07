@@ -25,6 +25,8 @@ function create_interview_slots() {
     }
     
     $slots_created = 0;
+    $zoom_error = null;
+    $zoom_failed_count = 0;
     $current_date = new DateTime($start_date);
     $end_date_obj = new DateTime($end_date);
     
@@ -48,8 +50,14 @@ function create_interview_slots() {
                     
                     $zoom_result = create_zoom_meeting($meeting_title, $slot_datetime, $duration, $user_id);
                     
-                    if (isset($zoom_result['join_url'])) {
+                    if (isset($zoom_result['success']) && $zoom_result['success'] && isset($zoom_result['join_url'])) {
                         $meeting_link = $zoom_result['join_url'];
+                    } else {
+                        // Store the first error message
+                        if ($zoom_error === null && isset($zoom_result['error'])) {
+                            $zoom_error = $zoom_result['error'];
+                        }
+                        $zoom_failed_count++;
                     }
                 }
                 
@@ -75,11 +83,19 @@ function create_interview_slots() {
         $current_date->modify('+1 day');
     }
     
-    echo json_encode([
+    $response = [
         'success' => true,
         'count' => $slots_created,
         'zoom_enabled' => $create_zoom
-    ]);
+    ];
+    
+    // Add warning if Zoom meetings failed
+    if ($create_zoom && $zoom_failed_count > 0) {
+        $response['warning'] = "Created $slots_created slots, but $zoom_failed_count Zoom meetings failed to create.";
+        $response['zoom_error'] = $zoom_error;
+    }
+    
+    echo json_encode($response);
 }
 
 /**

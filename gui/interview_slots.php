@@ -298,8 +298,18 @@ function createSlots() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const zoomMsg = data.zoom_enabled ? '\n\n✅ Zoom meetings created for each slot!' : '';
-            alert(`Successfully created ${data.count} interview slots!${zoomMsg}`);
+            let message = `Successfully created ${data.count} interview slots!`;
+            
+            if (data.zoom_enabled && !data.warning) {
+                message += '\n\n✅ Zoom meetings created for each slot!';
+            } else if (data.warning) {
+                message += '\n\n⚠️ ' + data.warning;
+                if (data.zoom_error) {
+                    message += '\n\nError: ' + data.zoom_error;
+                }
+            }
+            
+            alert(message);
             location.reload();
         } else {
             alert('Error: ' + (data.error || 'Failed to create slots'));

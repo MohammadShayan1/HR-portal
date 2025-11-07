@@ -41,6 +41,9 @@ $stats = [
             <p class="text-muted">Create and manage interview time slots for candidates</p>
         </div>
         <div class="col-auto">
+            <button class="btn btn-danger me-2" id="bulkDeleteBtn" onclick="toggleBulkDelete()" style="display:none;">
+                <i class="bi bi-trash"></i> Bulk Delete
+            </button>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSlotModal">
                 <i class="bi bi-plus-circle"></i> Create Slots
             </button>
@@ -78,10 +81,29 @@ $stats = [
     <!-- Slots Table -->
     <div class="card">
         <div class="card-body">
+            <div id="bulkActionBar" class="alert alert-info" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>
+                        <strong><span id="selectedCount">0</span></strong> slot(s) selected
+                    </span>
+                    <div>
+                        <button class="btn btn-sm btn-secondary" onclick="cancelBulkDelete()">
+                            <i class="bi bi-x"></i> Cancel
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="confirmBulkDelete()">
+                            <i class="bi bi-trash"></i> Delete Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <th id="checkboxHeader" style="display:none;">
+                                <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                            </th>
                             <th>Date</th>
                             <th>Time</th>
                             <th>Duration</th>
@@ -94,7 +116,7 @@ $stats = [
                     <tbody>
                         <?php if (empty($slots)): ?>
                             <tr>
-                                <td colspan="7" class="text-center py-4">
+                                <td colspan="8" class="text-center py-4">
                                     <i class="bi bi-calendar-x" style="font-size: 3rem; color: #ccc;"></i>
                                     <p class="text-muted mt-2">No interview slots created yet</p>
                                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSlotModal">
@@ -105,6 +127,11 @@ $stats = [
                         <?php else: ?>
                             <?php foreach ($slots as $slot): ?>
                                 <tr>
+                                    <td class="checkbox-cell" style="display:none;">
+                                        <?php if ($slot['status'] === 'available'): ?>
+                                            <input type="checkbox" class="slot-checkbox" value="<?php echo $slot['id']; ?>" onchange="updateSelectedCount()">
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <i class="bi bi-calendar3"></i>
                                         <?php echo date('M d, Y', strtotime($slot['slot_date'])); ?>
@@ -334,6 +361,107 @@ function parseTimeToMinutes(time) {
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
 }
+
+// Bulk delete functionality
+let bulkDeleteMode = false;
+
+function toggleBulkDelete() {
+    bulkDeleteMode = !bulkDeleteMode;
+    
+    const checkboxHeader = document.getElementById('checkboxHeader');
+    const checkboxCells = document.querySelectorAll('.checkbox-cell');
+    const bulkActionBar = document.getElementById('bulkActionBar');
+    const bulkBtn = document.getElementById('bulkDeleteBtn');
+    
+    if (bulkDeleteMode) {
+        // Show checkboxes
+        checkboxHeader.style.display = '';
+        checkboxCells.forEach(cell => cell.style.display = '');
+        bulkActionBar.style.display = 'block';
+        bulkBtn.innerHTML = '<i class="bi bi-x"></i> Cancel Selection';
+        bulkBtn.classList.remove('btn-danger');
+        bulkBtn.classList.add('btn-secondary');
+    } else {
+        // Hide checkboxes
+        checkboxHeader.style.display = 'none';
+        checkboxCells.forEach(cell => cell.style.display = 'none');
+        bulkActionBar.style.display = 'none';
+        bulkBtn.innerHTML = '<i class="bi bi-trash"></i> Bulk Delete';
+        bulkBtn.classList.remove('btn-secondary');
+        bulkBtn.classList.add('btn-danger');
+        
+        // Uncheck all
+        document.querySelectorAll('.slot-checkbox').forEach(cb => cb.checked = false);
+        document.getElementById('selectAll').checked = false;
+        updateSelectedCount();
+    }
+}
+
+function toggleSelectAll(checkbox) {
+    document.querySelectorAll('.slot-checkbox').forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const selected = document.querySelectorAll('.slot-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = selected;
+}
+
+function cancelBulkDelete() {
+    toggleBulkDelete();
+}
+
+function confirmBulkDelete() {
+    const selectedIds = Array.from(document.querySelectorAll('.slot-checkbox:checked'))
+        .map(cb => cb.value);
+    
+    if (selectedIds.length === 0) {
+        alert('Please select at least one slot to delete');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} slot(s)?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    // Delete slots one by one
+    let deleted = 0;
+    let failed = 0;
+    
+    const deletePromises = selectedIds.map(slotId => 
+        fetch(`functions/actions.php?action=delete_interview_slot&slot_id=${slotId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                deleted++;
+            } else {
+                failed++;
+            }
+        })
+        .catch(() => failed++)
+    );
+    
+    Promise.all(deletePromises).then(() => {
+        if (failed === 0) {
+            alert(`✅ Successfully deleted ${deleted} slot(s)!`);
+        } else {
+            alert(`Deleted ${deleted} slot(s).\n${failed} slot(s) failed to delete (may be booked).`);
+        }
+        location.reload();
+    });
+}
+
+// Show bulk delete button if there are available slots
+window.addEventListener('DOMContentLoaded', function() {
+    const availableSlots = document.querySelectorAll('.slot-checkbox').length;
+    if (availableSlots > 0) {
+        document.getElementById('bulkDeleteBtn').style.display = 'inline-block';
+    }
+});
 </script>
 
 <style>

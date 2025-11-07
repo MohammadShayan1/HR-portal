@@ -197,7 +197,8 @@ function test_zoom_connection($user_id) {
         ];
     }
     
-    $url = "https://api.zoom.us/v2/users/me";
+    // Test by trying to list meetings instead of getting user info
+    $url = "https://api.zoom.us/v2/users/me/meetings?page_size=1";
     
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -216,12 +217,9 @@ function test_zoom_connection($user_id) {
     }
     
     if ($http_code === 200) {
-        $user_data = json_decode($response, true);
-        $email = $user_data['email'] ?? 'Unknown';
-        
         return [
             'success' => true,
-            'message' => "✓ Connected successfully to Zoom account: $email"
+            'message' => "✓ Connected successfully! Your Zoom integration is ready to create meetings."
         ];
     } else {
         $error_data = json_decode($response, true);
@@ -229,7 +227,7 @@ function test_zoom_connection($user_id) {
         
         return [
             'success' => false,
-            'error' => "Connection failed (HTTP $http_code): $error_message"
+            'error' => "Connection failed (HTTP $http_code): $error_message. Please check your scopes: meeting:write:admin, meeting:read:admin"
         ];
     }
 }

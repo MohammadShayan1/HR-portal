@@ -241,8 +241,9 @@ $theme_accent = get_setting('theme_accent') ?? '#0dcaf0';
                             <li>Go to <a href="https://marketplace.zoom.us/" target="_blank">Zoom App Marketplace</a></li>
                             <li>Click "Develop" → "Build App"</li>
                             <li>Choose "Server-to-Server OAuth" app type</li>
+                            <li>Fill in app details and activate the app</li>
+                            <li><strong>Add these scopes:</strong> <code>meeting:write:admin</code>, <code>meeting:read:admin</code></li>
                             <li>Copy Account ID, Client ID, and Client Secret</li>
-                            <li>Add scopes: <code>meeting:write</code>, <code>meeting:read</code>, <code>user:read</code></li>
                         </ol>
                     </div>
                     

@@ -333,24 +333,11 @@ function send_meeting_invitation_email($candidate_id) {
     </html>
     ";
     
-    // Professional email headers for better deliverability
-    $headers = "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-type: text/html; charset=UTF-8" . "\r\n";
-    $headers .= "From: {$company_name} HR Team <{$company_email}>" . "\r\n";
-    $headers .= "Reply-To: {$company_email}" . "\r\n";
-    $headers .= "Return-Path: {$company_email}" . "\r\n";
-    $headers .= "X-Mailer: HR Portal/1.0" . "\r\n";
-    $headers .= "X-Priority: 1 (Highest)" . "\r\n";
-    $headers .= "X-MSMail-Priority: High" . "\r\n";
-    $headers .= "Importance: High" . "\r\n";
+    // Use enhanced email sending with better error handling
+    require_once __DIR__ . '/email_helper.php';
+    $result = send_email_enhanced($to, $subject, $message, $company_name . ' HR Team', $company_email, $candidate_id);
     
-    // Send email
-    $email_sent = mail($to, $subject, $message, $headers);
-    
-    // Log email attempt
-    log_email_activity($candidate_id, $to, $subject, $email_sent ? 'sent' : 'failed');
-    
-    return $email_sent;
+    return $result['success'];
 }
 
 /**

@@ -233,6 +233,36 @@ function book_interview_slot() {
         
         $pdo->commit();
         
+        // Get user_id for calendar sync
+        $stmt = $pdo->prepare("
+            SELECT j.user_id FROM candidates c
+            JOIN jobs j ON c.job_id = j.id
+            WHERE c.id = ?
+        ");
+        $stmt->execute([$candidate['id']]);
+        $user_data = $stmt->fetch();
+        $user_id = $user_data['user_id'];
+        
+        // Sync to calendar if enabled
+        $google_sync = get_setting('google_calendar_sync', $user_id) === '1';
+        $outlook_sync = get_setting('outlook_calendar_sync', $user_id) === '1';
+        
+        if ($google_sync || $outlook_sync) {
+            require_once __DIR__ . '/calendar_sync.php';
+            
+            $meeting_data = [
+                'title' => 'Interview: ' . $candidate['name'],
+                'description' => 'Interview scheduled via candidate self-booking',
+                'meeting_date' => $slot['slot_date'],
+                'meeting_time' => $slot['slot_time'],
+                'duration' => $slot['duration'],
+                'candidate_email' => $candidate['email'],
+                'zoom_join_url' => $slot['meeting_link']
+            ];
+            
+            sync_meeting_to_calendars($meeting_data, $user_id);
+        }
+        
         // Send confirmation email
         send_booking_confirmation_email($candidate, $slot);
         
@@ -309,12 +339,11 @@ function send_booking_confirmation_email($candidate, $slot) {
     
     $headers = "MIME-Version: 1.0" . "\r\n";
     $headers .= "Content-type: text/html; charset=UTF-8" . "\r\n";
-    $headers .= "From: HR Portal <noreply@hrportal.com>" . "\r\n";
+    $headers .= "From: HR Portal <noreply@hr.qlabs.pk>" . "\r\n";
     
-    mail($to, $subject, $message, $headers);
-    
-    // Log email
-    log_email_activity($candidate['id'], $to, $subject, 'sent');
+    // Use enhanced email sending
+    require_once __DIR__ . '/email_helper.php';
+    send_email_enhanced($to, $subject, $message, 'HR Portal', 'noreply@hr.qlabs.pk', $candidate['id']);
 }
 
 /**
@@ -410,10 +439,9 @@ function send_scheduling_invitation($candidate_id) {
     $headers .= "From: {$company_name} <{$candidate['company_email']}>" . "\r\n";
     $headers .= "Reply-To: {$candidate['company_email']}" . "\r\n";
     
-    $email_sent = mail($to, $subject, $message, $headers);
+    // Use enhanced email sending with better error handling
+    require_once __DIR__ . '/email_helper.php';
+    $result = send_email_enhanced($to, $subject, $message, $company_name, $candidate['company_email'], $candidate_id);
     
-    // Log email
-    log_email_activity($candidate_id, $to, $subject, $email_sent ? 'sent' : 'failed');
-    
-    return ['success' => $email_sent];
+    return $result;
 }

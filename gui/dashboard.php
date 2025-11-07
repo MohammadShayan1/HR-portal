@@ -321,20 +321,77 @@ $theme_accent = get_setting('theme_accent') ?? '#f093fb';
 
 <div class="row mt-4">
     <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-calendar3"></i> Meeting Calendar</h5>
-                    <span class="badge bg-primary"><?php echo count($meetings); ?> scheduled</span>
+        <div class="calendar-wrapper">
+            <!-- Left Panel - Today's Info -->
+            <div class="calendar-sidebar">
+                <div class="today-display">
+                    <div class="current-date-large"><?php echo date('d'); ?></div>
+                    <div class="current-day"><?php echo strtoupper(date('l')); ?></div>
+                    <div class="current-month-year"><?php echo date('F Y'); ?></div>
+                </div>
+                
+                <div class="today-events">
+                    <h6 class="text-white mb-3">Today's Events</h6>
+                    <?php 
+                    $today = date('Y-m-d');
+                    $today_meetings = array_filter($meetings, function($m) use ($today) {
+                        return $m['meeting_date'] === $today;
+                    });
+                    ?>
+                    <?php if (count($today_meetings) > 0): ?>
+                        <ul class="events-list">
+                            <?php foreach (array_slice($today_meetings, 0, 3) as $meeting): ?>
+                                <li>
+                                    <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i>
+                                    <?php echo htmlspecialchars($meeting['title']); ?>
+                                    <small class="d-block ms-3 mt-1 opacity-75">
+                                        <?php echo date('g:i A', strtotime($meeting['meeting_time'])); ?>
+                                    </small>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else: ?>
+                        <p class="text-white-50 mb-0">No events scheduled for today</p>
+                    <?php endif; ?>
+                    <a href="#" class="view-all-link" onclick="window.calendarInstance.changeView('listWeek'); return false;">
+                        View all events →
+                    </a>
+                </div>
+                
+                <div class="quick-actions mt-auto">
+                    <button class="btn btn-light w-100 mb-2" onclick="openEventForm()">
+                        <i class="bi bi-plus-lg me-2"></i>Create Event
+                    </button>
+                    <button class="btn btn-outline-light w-100" onclick="refreshCalendar()">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+                    </button>
                 </div>
             </div>
-            <div class="card-body">
+            
+            <!-- Right Panel - Calendar -->
+            <div class="calendar-main">
+                <div class="calendar-header-custom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">Meeting Calendar</h5>
+                            <small class="text-muted">Manage your interviews and events</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary px-3 py-2">
+                                <i class="bi bi-calendar-check me-1"></i>
+                                <?php echo count($meetings); ?> scheduled
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
                 <?php if (count($calendar_events) == 0 && !$google_sync_enabled && !$outlook_sync_enabled): ?>
-                    <div class="alert alert-info mb-3">
-                        <i class="bi bi-info-circle"></i> Your calendar is empty. Click <strong>"+ Add Event"</strong> in the calendar toolbar below to create your first event, or <a href="index.php?page=settings">connect your Google/Outlook calendar</a> to sync events.
+                    <div class="alert alert-info mx-3 mt-3">
+                        <i class="bi bi-info-circle"></i> Your calendar is empty. Click <strong>"Create Event"</strong> to get started, or <a href="index.php?page=settings" class="alert-link">connect your Google/Outlook calendar</a> to sync events.
                     </div>
                 <?php endif; ?>
-                <div id="calendar" style="min-height: 600px;"></div>
+                
+                <div id="calendar" class="p-3"></div>
             </div>
         </div>
     </div>
@@ -530,6 +587,378 @@ $theme_accent = get_setting('theme_accent') ?? '#f093fb';
 <!-- FullCalendar CSS -->
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
 
+<style>
+/* Calendar Wrapper - Split Design */
+.calendar-wrapper {
+    display: flex;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    min-height: 650px;
+}
+
+/* Left Sidebar - Colored Panel */
+.calendar-sidebar {
+    width: 320px;
+    background: linear-gradient(135deg, <?php echo $theme_primary; ?> 0%, <?php echo $theme_secondary; ?> 100%);
+    color: white;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.calendar-sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.05);
+    pointer-events: none;
+}
+
+/* Today's Date Display */
+.today-display {
+    text-align: center;
+    margin: 2rem 0;
+    z-index: 1;
+}
+
+.current-date-large {
+    font-size: 140px;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.current-day {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    margin-top: -20px;
+}
+
+.current-month-year {
+    font-size: 16px;
+    opacity: 0.9;
+    margin-top: 0.5rem;
+}
+
+/* Today's Events */
+.today-events {
+    z-index: 1;
+    margin-top: 1.5rem;
+}
+
+.today-events h6 {
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.events-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.events-list li {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.9rem;
+}
+
+.events-list li:last-child {
+    border-bottom: none;
+}
+
+.view-all-link {
+    color: white;
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-top: 1rem;
+    opacity: 0.9;
+    transition: all 0.3s;
+}
+
+.view-all-link:hover {
+    opacity: 1;
+    color: white;
+    transform: translateX(5px);
+}
+
+/* Quick Actions */
+.quick-actions {
+    margin-top: 2rem;
+    z-index: 1;
+}
+
+.quick-actions .btn {
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.quick-actions .btn-light:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.quick-actions .btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Right Calendar Panel */
+.calendar-main {
+    flex: 1;
+    background: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.calendar-header-custom {
+    padding: 1.5rem 2rem;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.calendar-header-custom h5 {
+    color: #1e293b;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Calendar Styling */
+.fc {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.fc .fc-toolbar {
+    padding: 1rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.fc .fc-toolbar-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1e293b;
+    background: linear-gradient(135deg, <?php echo $theme_primary; ?> 0%, <?php echo $theme_secondary; ?> 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Navigation Buttons */
+.fc .fc-button {
+    background: white;
+    border: 2px solid #e2e8f0;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: capitalize;
+    padding: 0.5rem 1.25rem;
+    border-radius: 10px;
+    transition: all 0.3s;
+}
+
+.fc .fc-button:hover {
+    background: #f8fafc;
+    border-color: <?php echo $theme_primary; ?>;
+    color: <?php echo $theme_primary; ?>;
+    transform: translateY(-2px);
+}
+
+.fc .fc-button:focus {
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.fc .fc-button-primary:not(:disabled):active,
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+    background: linear-gradient(135deg, <?php echo $theme_primary; ?> 0%, <?php echo $theme_secondary; ?> 100%);
+    border-color: <?php echo $theme_primary; ?>;
+    color: white;
+    transform: translateY(0);
+}
+
+.fc .fc-button-group > .fc-button {
+    margin: 0;
+}
+
+/* Today Button - Special Style */
+.fc .fc-today-button {
+    background: linear-gradient(135deg, <?php echo $theme_primary; ?> 0%, <?php echo $theme_secondary; ?> 100%);
+    border: none;
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.fc .fc-today-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+/* Calendar Cells */
+.fc .fc-daygrid-day {
+    transition: all 0.2s;
+}
+
+.fc .fc-daygrid-day:hover {
+    background-color: #f8fafc;
+    cursor: pointer;
+}
+
+.fc .fc-day-today {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%) !important;
+}
+
+.fc .fc-day-today .fc-daygrid-day-number {
+    background: linear-gradient(135deg, <?php echo $theme_primary; ?> 0%, <?php echo $theme_secondary; ?> 100%);
+    color: white;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Events */
+.fc-event {
+    border: none;
+    padding: 4px 8px;
+    margin: 2px 0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-left: 3px solid rgba(0, 0, 0, 0.2);
+}
+
+.fc-event:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.fc-event-title {
+    font-weight: 600;
+}
+
+/* Day Headers */
+.fc .fc-col-header-cell {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: #64748b;
+    padding: 1rem 0;
+    border: none;
+}
+
+/* Grid Lines */
+.fc .fc-scrollgrid {
+    border-color: #e2e8f0;
+    border-width: 2px;
+}
+
+.fc .fc-scrollgrid td,
+.fc .fc-scrollgrid th {
+    border-color: #e2e8f0;
+}
+
+/* More Link */
+.fc .fc-more-link {
+    color: <?php echo $theme_primary; ?>;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.fc .fc-more-link:hover {
+    color: <?php echo $theme_secondary; ?>;
+}
+
+/* Time Grid */
+.fc .fc-timegrid-slot {
+    height: 3rem;
+}
+
+.fc .fc-timegrid-slot-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* List View */
+.fc-list-event:hover {
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, transparent 100%);
+}
+
+.fc-list-event-title {
+    font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .calendar-wrapper {
+        flex-direction: column;
+        border-radius: 15px;
+    }
+    
+    .calendar-sidebar {
+        width: 100%;
+        min-height: auto;
+        padding: 1.5rem;
+    }
+    
+    .current-date-large {
+        font-size: 100px;
+    }
+    
+    .current-day {
+        font-size: 24px;
+    }
+    
+    .today-display {
+        margin: 1rem 0;
+    }
+    
+    .quick-actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .quick-actions .btn {
+        flex: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .fc .fc-toolbar {
+        flex-direction: column;
+    }
+    
+    .fc .fc-toolbar-title {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .fc .fc-button {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .calendar-header-custom {
+        padding: 1rem;
+    }
+}
+</style>
+
 <!-- FullCalendar JS -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 
@@ -548,23 +977,16 @@ document.addEventListener('DOMContentLoaded', function() {
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         headerToolbar: {
-            left: 'prev,next today addEventButton refreshButton',
+            left: 'prev,next today',
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
         },
-        customButtons: {
-            addEventButton: {
-                text: '+ Add Event',
-                click: function() {
-                    openEventForm();
-                }
-            },
-            refreshButton: {
-                text: '↻ Refresh',
-                click: function() {
-                    refreshCalendar();
-                }
-            }
+        buttonText: {
+            today: 'Today',
+            month: 'Month',
+            week: 'Week',
+            day: 'Day',
+            list: 'List'
         },
         events: <?php echo json_encode($calendar_events); ?>,
         editable: true,
@@ -589,8 +1011,19 @@ document.addEventListener('DOMContentLoaded', function() {
         height: 'auto',
         nowIndicator: true,
         navLinks: true,
-        businessHours: true,
-        dayMaxEvents: 3
+        businessHours: {
+            daysOfWeek: [1, 2, 3, 4, 5],
+            startTime: '09:00',
+            endTime: '18:00',
+        },
+        dayMaxEvents: 3,
+        slotMinTime: '08:00:00',
+        slotMaxTime: '20:00:00',
+        eventTimeFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        }
     });
     
     calendar.render();

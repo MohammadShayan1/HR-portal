@@ -471,6 +471,32 @@ window.addEventListener('DOMContentLoaded', function() {
     if (availableSlots > 0) {
         document.getElementById('bulkDeleteBtn').style.display = 'inline-block';
     }
+    
+    // Restore previously selected days from localStorage
+    const savedDays = localStorage.getItem('interview_slot_days');
+    if (savedDays) {
+        const days = JSON.parse(savedDays);
+        // Uncheck all first
+        document.querySelectorAll('[name="days[]"]').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        // Check saved days
+        days.forEach(day => {
+            const checkbox = document.querySelector(`[name="days[]"][value="${day}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+    }
+    
+    // Save selected days when they change
+    document.querySelectorAll('[name="days[]"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const selectedDays = Array.from(document.querySelectorAll('[name="days[]"]:checked'))
+                .map(cb => cb.value);
+            localStorage.setItem('interview_slot_days', JSON.stringify(selectedDays));
+        });
+    });
 });
 </script>
 

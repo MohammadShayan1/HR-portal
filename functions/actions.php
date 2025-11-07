@@ -321,6 +321,10 @@ function save_zoom_settings() {
         set_setting('zoom_client_secret', $zoom_client_secret, $user_id);
     }
     
+    // Clear cached Zoom token to force using new credentials
+    set_setting('zoom_access_token', '', $user_id);
+    set_setting('zoom_token_expires', '', $user_id);
+    
     header('Location: ../index.php?page=settings&success=1');
     exit;
 }

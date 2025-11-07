@@ -91,6 +91,38 @@ foreach ($meetings as $meeting) {
     ];
 }
 
+// Add booked interview slots to calendar
+$stmt = $pdo->prepare("
+    SELECT s.*, c.name as candidate_name, c.email as candidate_email, j.title as job_title
+    FROM interview_slots s
+    LEFT JOIN candidates c ON s.candidate_id = c.id
+    LEFT JOIN jobs j ON c.job_id = j.id
+    WHERE s.user_id = ? AND s.status = 'booked'
+    ORDER BY s.slot_date ASC, s.slot_time ASC
+");
+$stmt->execute([$user_id]);
+$booked_slots = $stmt->fetchAll();
+
+foreach ($booked_slots as $slot) {
+    $calendar_events[] = [
+        'id' => 'slot_' . $slot['id'],
+        'title' => '📋 Interview: ' . ($slot['candidate_name'] ?? 'Unknown'),
+        'start' => $slot['slot_date'] . 'T' . $slot['slot_time'],
+        'end' => date('Y-m-d\TH:i:s', strtotime($slot['slot_date'] . ' ' . $slot['slot_time'] . ' +' . $slot['duration'] . ' minutes')),
+        'backgroundColor' => '#ff9800',
+        'borderColor' => '#ff9800',
+        'extendedProps' => [
+            'source' => 'interview_slot',
+            'candidate_name' => $slot['candidate_name'],
+            'candidate_email' => $slot['candidate_email'],
+            'job_title' => $slot['job_title'],
+            'meeting_link' => $slot['meeting_link'],
+            'duration' => $slot['duration'],
+            'status' => 'scheduled'
+        ]
+    ];
+}
+
 // Fetch Google Calendar events if connected
 require_once __DIR__ . '/../functions/calendar_sync.php';
 $google_sync_enabled = get_setting('google_calendar_sync', $user_id) === '1';

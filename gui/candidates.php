@@ -26,18 +26,20 @@ if ($job_id !== 'all' && $job_id > 0) {
 // Get candidates based on filter
 if ($job_id === 'all') {
     $stmt = $pdo->prepare("
-        SELECT c.*, j.title as job_title 
+        SELECT c.*, j.title as job_title, s.id as booked_slot_id
         FROM candidates c
         JOIN jobs j ON c.job_id = j.id
+        LEFT JOIN interview_slots s ON c.slot_id = s.id
         WHERE j.user_id = ?
         ORDER BY c.applied_at DESC
     ");
     $stmt->execute([$user_id]);
 } else {
     $stmt = $pdo->prepare("
-        SELECT c.*, j.title as job_title 
+        SELECT c.*, j.title as job_title, s.id as booked_slot_id
         FROM candidates c
         JOIN jobs j ON c.job_id = j.id
+        LEFT JOIN interview_slots s ON c.slot_id = s.id
         WHERE c.job_id = ? AND j.user_id = ?
         ORDER BY c.applied_at DESC
     ");
@@ -178,10 +180,16 @@ function filterByJob(jobId) {
                                                             data-bs-target="#interviewModal<?php echo $candidate['id']; ?>">
                                                         <i class="bi bi-link-45deg"></i> Interview Link
                                                     </button>
-                                                    <button class="btn btn-sm btn-primary" 
-                                                            onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
-                                                        <i class="bi bi-calendar-check"></i> Send Scheduling Link
-                                                    </button>
+                                                    <?php if (empty($candidate['booked_slot_id'])): ?>
+                                                        <button class="btn btn-sm btn-primary" 
+                                                                onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                                            <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button class="btn btn-sm btn-success" disabled>
+                                                            <i class="bi bi-check-circle"></i> Slot Booked
+                                                        </button>
+                                                    <?php endif; ?>
                                                 </div>
                                             <?php elseif ($candidate['status'] === 'Interview Completed'): ?>
                                                 <div class="btn-group" role="group">
@@ -189,10 +197,16 @@ function filterByJob(jobId) {
                                                        class="btn btn-sm btn-info">
                                                         <i class="bi bi-file-earmark-text"></i> Generate Report
                                                     </a>
-                                                    <button class="btn btn-sm btn-primary" 
-                                                            onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
-                                                        <i class="bi bi-calendar-check"></i> Send Scheduling Link
-                                                    </button>
+                                                    <?php if (empty($candidate['booked_slot_id'])): ?>
+                                                        <button class="btn btn-sm btn-primary" 
+                                                                onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                                            <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button class="btn btn-sm btn-success" disabled>
+                                                            <i class="bi bi-check-circle"></i> Slot Booked
+                                                        </button>
+                                                    <?php endif; ?>
                                                 </div>
                                             <?php elseif ($candidate['status'] === 'Report Ready'): ?>
                                                 <div class="btn-group" role="group">
@@ -200,10 +214,16 @@ function filterByJob(jobId) {
                                                        class="btn btn-sm btn-success">
                                                         <i class="bi bi-eye"></i> View Report
                                                     </a>
-                                                    <button class="btn btn-sm btn-primary" 
-                                                            onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
-                                                        <i class="bi bi-calendar-check"></i> Send Scheduling Link
-                                                    </button>
+                                                    <?php if (empty($candidate['booked_slot_id'])): ?>
+                                                        <button class="btn btn-sm btn-primary" 
+                                                                onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                                            <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button class="btn btn-sm btn-success" disabled>
+                                                            <i class="bi bi-check-circle"></i> Slot Booked
+                                                        </button>
+                                                    <?php endif; ?>
                                                 </div>
                                             <?php endif; ?>
                                         </td>

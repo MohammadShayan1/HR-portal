@@ -135,11 +135,16 @@ $stats['failed_count'] = $stats['failed_count'] ?? 0;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .status-badge {
             padding: 5px 10px;
             border-radius: 5px;
             font-size: 0.85rem;
             font-weight: 500;
+            white-space: nowrap;
         }
         .status-sent {
             background-color: #d4edda;
@@ -159,15 +164,96 @@ $stats['failed_count'] = $stats['failed_count'] ?? 0;
         .email-subject {
             font-weight: 500;
             color: #333;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .email-details {
             font-size: 0.9rem;
             color: #666;
+            white-space: nowrap;
         }
         .pagination-wrapper {
             margin-top: 20px;
             display: flex;
             justify-content: center;
+        }
+        
+        /* Table column widths */
+        .table td, .table th {
+            vertical-align: middle;
+        }
+        .table th:nth-child(1), .table td:nth-child(1) { width: 120px; min-width: 120px; }
+        .table th:nth-child(2), .table td:nth-child(2) { width: 200px; min-width: 180px; }
+        .table th:nth-child(3), .table td:nth-child(3) { width: 250px; min-width: 200px; }
+        .table th:nth-child(4), .table td:nth-child(4) { width: auto; min-width: 200px; }
+        .table th:nth-child(5), .table td:nth-child(5) { width: 100px; min-width: 100px; text-align: center; }
+        .table th:nth-child(6), .table td:nth-child(6) { width: 80px; min-width: 80px; text-align: center; }
+        
+        /* Responsive adjustments */
+        @media (max-width: 1200px) {
+            .email-subject {
+                max-width: 200px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stats-number {
+                font-size: 2rem;
+            }
+            .email-subject {
+                max-width: 150px;
+            }
+            .table {
+                font-size: 0.9rem;
+            }
+            .table th:nth-child(2), .table td:nth-child(2) { min-width: 150px; }
+            .table th:nth-child(3), .table td:nth-child(3) { min-width: 180px; }
+        }
+        
+        /* Card view for mobile */
+        .email-log-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .email-log-card .card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .email-log-card .card-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .email-log-card .label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 500;
+        }
+        .email-log-card .value {
+            font-size: 0.9rem;
+            color: #333;
+            text-align: right;
+            max-width: 60%;
+            word-break: break-word;
+        }
+        
+        @media (max-width: 992px) {
+            .table-view {
+                display: none;
+            }
+            .email-log-card {
+                display: block;
+            }
         }
     </style>
 </head>
@@ -251,7 +337,7 @@ $stats['failed_count'] = $stats['failed_count'] ?? 0;
         </div>
 
         <!-- Email Logs Table -->
-        <div class="log-table">
+        <div class="log-table table-view">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
@@ -303,7 +389,7 @@ $stats['failed_count'] = $stats['failed_count'] ?? 0;
                                         </a>
                                     </td>
                                     <td>
-                                        <div class="email-subject">
+                                        <div class="email-subject" title="<?php echo htmlspecialchars($log['subject']); ?>">
                                             <?php echo htmlspecialchars($log['subject']); ?>
                                         </div>
                                     </td>
@@ -393,6 +479,62 @@ $stats['failed_count'] = $stats['failed_count'] ?? 0;
                 </table>
             </div>
         </div>
+
+        <!-- Mobile Card View -->
+        <?php if (!empty($logs)): ?>
+            <?php foreach ($logs as $log): ?>
+                <div class="email-log-card">
+                    <div class="card-row">
+                        <span class="label"><i class="bi bi-calendar3"></i> Date</span>
+                        <span class="value">
+                            <?php echo date('M d, Y h:i A', strtotime($log['sent_at'])); ?>
+                        </span>
+                    </div>
+                    <div class="card-row">
+                        <span class="label"><i class="bi bi-person"></i> Candidate</span>
+                        <span class="value">
+                            <strong><?php echo htmlspecialchars($log['candidate_name'] ?? 'N/A'); ?></strong>
+                            <?php if ($log['job_title']): ?>
+                                <br><small class="text-muted"><?php echo htmlspecialchars($log['job_title']); ?></small>
+                            <?php endif; ?>
+                        </span>
+                    </div>
+                    <div class="card-row">
+                        <span class="label"><i class="bi bi-envelope"></i> To</span>
+                        <span class="value">
+                            <a href="mailto:<?php echo htmlspecialchars($log['recipient']); ?>" class="text-decoration-none">
+                                <?php echo htmlspecialchars($log['recipient']); ?>
+                            </a>
+                        </span>
+                    </div>
+                    <div class="card-row">
+                        <span class="label"><i class="bi bi-chat-text"></i> Subject</span>
+                        <span class="value"><?php echo htmlspecialchars($log['subject']); ?></span>
+                    </div>
+                    <div class="card-row">
+                        <span class="label"><i class="bi bi-flag"></i> Status</span>
+                        <span class="value">
+                            <?php if ($log['status'] === 'sent'): ?>
+                                <span class="status-badge status-sent">
+                                    <i class="bi bi-check-circle"></i> Sent
+                                </span>
+                            <?php else: ?>
+                                <span class="status-badge status-failed">
+                                    <i class="bi bi-x-circle"></i> Failed
+                                </span>
+                            <?php endif; ?>
+                        </span>
+                    </div>
+                    <div class="text-end mt-2">
+                        <button class="btn btn-sm btn-outline-info" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#detailsModal<?php echo $log['id']; ?>">
+                            <i class="bi bi-info-circle"></i> View Details
+                        </button>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
 
         <!-- Pagination -->
         <?php if ($total_pages > 1): ?>

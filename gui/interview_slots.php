@@ -286,6 +286,75 @@ $stats = [
     </div>
 </div>
 
+<!-- Booking Details Modal -->
+<div class="modal fade" id="bookingDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-info-circle"></i> Booking Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Interview Date</label>
+                        <p class="fw-bold" id="bookingDate">-</p>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="text-muted small">Time</label>
+                        <p class="fw-bold" id="bookingTime">-</p>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="text-muted small">Duration</label>
+                        <p class="fw-bold" id="bookingDuration">-</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small"><i class="bi bi-person"></i> Candidate Name</label>
+                        <p class="fw-bold" id="bookingCandidate">-</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small"><i class="bi bi-envelope"></i> Email</label>
+                        <p><a href="" id="bookingEmail" class="text-decoration-none">-</a></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small"><i class="bi bi-telephone"></i> Phone</label>
+                        <p class="fw-bold" id="bookingPhone">-</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small"><i class="bi bi-briefcase"></i> Position</label>
+                        <p class="fw-bold" id="bookingJob">-</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small"><i class="bi bi-flag"></i> Status</label>
+                        <p><span class="badge bg-warning" id="bookingStatus">-</span></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small"><i class="bi bi-clock-history"></i> Booked At</label>
+                        <p class="fw-bold" id="bookingBookedAt">-</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <label class="text-muted small"><i class="bi bi-camera-video"></i> Meeting Link</label>
+                        <p id="bookingMeetingLink">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function createSlots() {
     const form = document.getElementById('createSlotsForm');
@@ -344,8 +413,43 @@ function editSlot(slotId) {
 }
 
 function viewBooking(slotId) {
-    // TODO: Implement view booking details
-    alert('View booking details coming soon!');
+    // Fetch booking details and show in modal
+    fetch(`functions/actions.php?action=get_booking_details&slot_id=${slotId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+            
+            // Populate modal with booking details
+            document.getElementById('bookingDate').textContent = data.slot_date;
+            document.getElementById('bookingTime').textContent = data.slot_time;
+            document.getElementById('bookingDuration').textContent = data.duration + ' minutes';
+            document.getElementById('bookingCandidate').textContent = data.candidate_name || 'N/A';
+            document.getElementById('bookingEmail').textContent = data.candidate_email || 'N/A';
+            document.getElementById('bookingEmail').href = 'mailto:' + (data.candidate_email || '');
+            document.getElementById('bookingPhone').textContent = data.candidate_phone || 'N/A';
+            document.getElementById('bookingJob').textContent = data.job_title || 'N/A';
+            document.getElementById('bookingStatus').textContent = data.status || 'N/A';
+            document.getElementById('bookingBookedAt').textContent = data.booked_at ? new Date(data.booked_at).toLocaleString() : 'N/A';
+            
+            // Meeting link
+            const meetingLinkEl = document.getElementById('bookingMeetingLink');
+            if (data.meeting_link) {
+                meetingLinkEl.innerHTML = `<a href="${data.meeting_link}" target="_blank" class="btn btn-sm btn-primary"><i class="bi bi-box-arrow-up-right"></i> Join Meeting</a>`;
+            } else {
+                meetingLinkEl.textContent = 'No meeting link';
+            }
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('bookingDetailsModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error fetching booking details:', error);
+            alert('Failed to load booking details');
+        });
 }
 
 // Update preview text

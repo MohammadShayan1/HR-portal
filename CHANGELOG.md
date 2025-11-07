@@ -2,6 +2,83 @@
 
 All notable changes to the HR Virtual Interview Portal project.
 
+## [2.3.0] - 2025-11-08
+
+### 🔧 Interview Scheduling & Email System Improvements
+
+#### Email System Enhancements
+- **Simplified Email Configuration**
+  - Removed PHPMailer dependency completely
+  - Using native PHP `mail()` function for cPanel compatibility
+  - Added proper email headers (Return-Path, MIME, Content-Type)
+  - Fixed envelope sender with `-f` parameter for SPF/DKIM authentication
+  - Email sender standardized to `noreply@hr.qlabs.pk` across all functions
+
+- **Improved Email Logging**
+  - Dedicated log file system (`logs/email.log`)
+  - Dual logging (file + database) for redundancy
+  - Structured log format with timestamps
+  - Protected logs directory with `.htaccess`
+  - Easy troubleshooting and email tracking
+
+- **Email Logs UI - Fully Responsive**
+  - Fixed table overflow issues
+  - Desktop: Scrollable table with fixed column widths
+  - Mobile: Beautiful card-based layout (auto-switches below 992px)
+  - Ellipsis for long subjects with hover tooltips
+  - Touch-friendly interface for mobile devices
+  - Statistics cards (Total/Sent/Failed)
+
+#### Interview Scheduling System Improvements
+- **Calendar Integration**
+  - Booked interview slots now appear on dashboard calendar
+  - Orange color coding for interview slots (📋 icon)
+  - Shows candidate name, job title, and meeting details
+  - Automatic calendar sync when slots are booked
+
+- **Scheduling Link Button Logic**
+  - Button hidden after candidate books a slot
+  - Shows green "Slot Booked ✓" button when booked
+  - Shows blue "Send Scheduling Link" when not booked
+  - Applies to all candidate statuses (Applied/Completed/Report Ready)
+  - Prevents duplicate scheduling invitations
+
+- **View Booking Details Feature**
+  - Fully implemented booking details modal
+  - Shows complete interview information (date, time, duration)
+  - Displays candidate details (name, email, phone, job)
+  - Meeting link with "Join Meeting" button
+  - Booking timestamp and status
+  - AJAX-powered real-time data fetching
+
+- **URL Generation Fix**
+  - Fixed scheduling URL to work correctly on production
+  - Removed hardcoded `/HR-portal/` path from URLs
+  - Direct URL building: `https://hr.qlabs.pk/schedule.php?token=...`
+  - Works on both local and production environments
+
+#### Bug Fixes
+- Fixed duplicate `log_email_activity()` function declarations
+- Removed `/functions/` from scheduling link URLs (404 error fix)
+- Fixed JSON parsing errors in AJAX responses
+- Added proper error handling for email sending failures
+
+#### Files Modified
+- `functions/email_helper.php` - Simplified email system, native PHP mail()
+- `functions/interview_slots.php` - Fixed URL generation, added booking details function
+- `functions/candidate_actions.php` - Removed duplicate functions
+- `functions/actions.php` - Added `get_booking_details` action handler
+- `gui/email_logs.php` - Responsive design with mobile card view
+- `gui/interview_slots.php` - Implemented viewBooking modal and function
+- `gui/dashboard.php` - Added booked slots to calendar display
+- `gui/candidates.php` - Conditional button display based on booking status
+- `logs/` directory - Created with `.htaccess` protection
+
+#### Documentation Added
+- `EMAIL_AUTHENTICATION_SETUP.md` - Guide for configuring SPF/DKIM in cPanel
+
+---
+
 ## [2.2.0] - 2025-11-08
 
 ### 🎉 Major Update - Interview Scheduling System & Email Tracking

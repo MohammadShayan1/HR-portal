@@ -177,6 +177,10 @@ switch ($action) {
         delete_interview_slot();
         break;
 
+    case 'get_booking_details':
+        get_booking_details();
+        break;
+
     case 'get_available_slots_for_candidate':
         get_available_slots_for_candidate();
         break;

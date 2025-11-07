@@ -129,6 +129,58 @@ function delete_interview_slot() {
 }
 
 /**
+ * Get booking details for a slot
+ */
+function get_booking_details() {
+    $user_id = get_current_user_id();
+    $pdo = get_db();
+    
+    $slot_id = $_GET['slot_id'] ?? '';
+    
+    if (empty($slot_id)) {
+        echo json_encode(['error' => 'Missing slot ID']);
+        exit;
+    }
+    
+    // Get slot with candidate information
+    $stmt = $pdo->prepare("
+        SELECT 
+            s.*,
+            c.name as candidate_name,
+            c.email as candidate_email,
+            c.phone as candidate_phone,
+            j.title as job_title
+        FROM interview_slots s
+        LEFT JOIN candidates c ON s.candidate_id = c.id
+        LEFT JOIN jobs j ON c.job_id = j.id
+        WHERE s.id = ? AND s.user_id = ?
+    ");
+    $stmt->execute([$slot_id, $user_id]);
+    $slot = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$slot) {
+        echo json_encode(['error' => 'Slot not found']);
+        exit;
+    }
+    
+    // Format the response
+    $response = [
+        'slot_date' => date('F j, Y', strtotime($slot['slot_date'])),
+        'slot_time' => date('h:i A', strtotime($slot['slot_time'])),
+        'duration' => $slot['duration'],
+        'status' => ucfirst($slot['status']),
+        'meeting_link' => $slot['meeting_link'],
+        'candidate_name' => $slot['candidate_name'],
+        'candidate_email' => $slot['candidate_email'],
+        'candidate_phone' => $slot['candidate_phone'],
+        'job_title' => $slot['job_title'],
+        'booked_at' => $slot['booked_at']
+    ];
+    
+    echo json_encode($response);
+}
+
+/**
  * Get available slots for a candidate
  */
 function get_available_slots_for_candidate() {
@@ -376,10 +428,10 @@ function send_scheduling_invitation($candidate_id) {
         $token = $candidate['scheduling_token'];
     }
     
-    // Use get_base_url() to handle both local and production environments
-    require_once __DIR__ . '/core.php';
-    $base_url = rtrim(get_base_url(), '/');
-    $scheduling_url = $base_url . "/schedule.php?token=" . $token;
+    // Build URL properly - avoid including /functions/ in the path
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $scheduling_url = $protocol . '://' . $host . "/schedule.php?token=" . $token;
     
     $to = $candidate['email'];
     $subject = "Schedule Your Interview - " . $candidate['job_title'];

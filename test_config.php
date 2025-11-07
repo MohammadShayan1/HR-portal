@@ -9,9 +9,7 @@
  */
 
 // Prevent direct access in production
-if (!isset($_GET['test']) || $_GET['test'] !== 'run') {
-    die('Access denied. Add ?test=run to URL to run tests.');
-}
+$canRun = isset($_GET['test']) && $_GET['test'] === 'run';
 
 ?>
 <!DOCTYPE html>
@@ -188,6 +186,36 @@ if (!isset($_GET['test']) || $_GET['test'] !== 'run') {
         </div>
         <div class="content">
             <?php
+            if (!$canRun) {
+                // Show instructions if accessed without parameter
+                echo '<div class="alert warning">';
+                echo '<h3 style="margin-bottom: 10px;">🔒 Security Check Required</h3>';
+                echo '<p style="margin-bottom: 15px;">To run the configuration tests, please add the test parameter to the URL:</p>';
+                echo '<p style="background: white; padding: 15px; border-radius: 6px; font-family: monospace; color: #667eea; font-weight: 600; word-break: break-all;">';
+                $currentUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
+                echo htmlspecialchars($currentUrl . '?test=run');
+                echo '</p>';
+                echo '<p style="margin-top: 15px;"><a href="?test=run" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">▶ Run Tests Now</a></p>';
+                echo '</div>';
+                
+                echo '<div class="test-section">';
+                echo '<div class="test-header">ℹ️ What This Tool Does</div>';
+                echo '<div class="test-body">';
+                echo '<ul style="line-height: 2; margin-left: 20px;">';
+                echo '<li>✅ Checks if <code>config.php</code> exists</li>';
+                echo '<li>✅ Validates all security settings</li>';
+                echo '<li>✅ Tests database connection</li>';
+                echo '<li>✅ Verifies OAuth configurations</li>';
+                echo '<li>✅ Checks file permissions</li>';
+                echo '<li>✅ Provides specific recommendations</li>';
+                echo '</ul>';
+                echo '</div>';
+                echo '</div>';
+                
+                echo '</div></div></body></html>';
+                exit;
+            }
+            
             $passed = 0;
             $failed = 0;
             $warnings = 0;

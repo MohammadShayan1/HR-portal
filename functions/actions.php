@@ -128,6 +128,15 @@ switch ($action) {
         delete_calendar_event();
         break;
     
+    // === SUPER ADMIN ACTIONS ===
+    case 'save_system_oauth':
+        save_system_oauth();
+        break;
+    
+    case 'toggle_super_admin':
+        toggle_super_admin();
+        break;
+    
     default:
         header('HTTP/1.1 404 Not Found');
         echo json_encode(['error' => 'Action not found']);
@@ -1090,6 +1099,123 @@ function delete_calendar_event() {
         $stmt->execute([$event_id, $user_id]);
         
         // TODO: Delete from Google/Outlook calendars if synced
+        
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+/**
+ * Save system-wide OAuth settings (Super Admin only)
+ */
+function save_system_oauth() {
+    $user_id = get_current_user_id();
+    if (!$user_id) {
+        header('Location: ../gui/login.php');
+        exit;
+    }
+    
+    // Verify super admin
+    $pdo = get_db();
+    $stmt = $pdo->prepare("SELECT is_super_admin FROM users WHERE id = ?");
+    $stmt->execute([$user_id]);
+    $user = $stmt->fetch();
+    
+    if (!$user || $user['is_super_admin'] != 1) {
+        header('Location: ../index.php?page=dashboard');
+        exit;
+    }
+    
+    $provider = $_POST['provider'] ?? '';
+    $now = date('Y-m-d H:i:s');
+    
+    if ($provider === 'google') {
+        $client_id = trim($_POST['client_id'] ?? '');
+        $client_secret = trim($_POST['client_secret'] ?? '');
+        $redirect_uri = trim($_POST['redirect_uri'] ?? '');
+        
+        // Save to system_settings
+        $stmt = $pdo->prepare("
+            INSERT INTO system_settings (setting_key, setting_value, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(setting_key) DO UPDATE SET setting_value = ?, updated_at = ?
+        ");
+        
+        $stmt->execute(['google_client_id', $client_id, $now, $now, $client_id, $now]);
+        $stmt->execute(['google_client_secret', $client_secret, $now, $now, $client_secret, $now]);
+        $stmt->execute(['google_redirect_uri', $redirect_uri, $now, $now, $redirect_uri, $now]);
+        
+    } elseif ($provider === 'outlook') {
+        $client_id = trim($_POST['client_id'] ?? '');
+        $client_secret = trim($_POST['client_secret'] ?? '');
+        $redirect_uri = trim($_POST['redirect_uri'] ?? '');
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO system_settings (setting_key, setting_value, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(setting_key) DO UPDATE SET setting_value = ?, updated_at = ?
+        ");
+        
+        $stmt->execute(['outlook_client_id', $client_id, $now, $now, $client_id, $now]);
+        $stmt->execute(['outlook_client_secret', $client_secret, $now, $now, $client_secret, $now]);
+        $stmt->execute(['outlook_redirect_uri', $redirect_uri, $now, $now, $redirect_uri, $now]);
+        
+    } elseif ($provider === 'zoom') {
+        $account_id = trim($_POST['account_id'] ?? '');
+        $client_id = trim($_POST['client_id'] ?? '');
+        $client_secret = trim($_POST['client_secret'] ?? '');
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO system_settings (setting_key, setting_value, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(setting_key) DO UPDATE SET setting_value = ?, updated_at = ?
+        ");
+        
+        $stmt->execute(['zoom_account_id', $account_id, $now, $now, $account_id, $now]);
+        $stmt->execute(['zoom_client_id', $client_id, $now, $now, $client_id, $now]);
+        $stmt->execute(['zoom_client_secret', $client_secret, $now, $now, $client_secret, $now]);
+    }
+    
+    header('Location: ../index.php?page=super_admin&success=1');
+    exit;
+}
+
+/**
+ * Toggle super admin status for a user
+ */
+function toggle_super_admin() {
+    header('Content-Type: application/json');
+    
+    try {
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            echo json_encode(['error' => 'Not authenticated']);
+            exit;
+        }
+        
+        // Verify super admin
+        $pdo = get_db();
+        $stmt = $pdo->prepare("SELECT is_super_admin FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch();
+        
+        if (!$user || $user['is_super_admin'] != 1) {
+            echo json_encode(['error' => 'Access denied']);
+            exit;
+        }
+        
+        $target_user_id = intval($_POST['user_id'] ?? 0);
+        $is_super_admin = intval($_POST['is_super_admin'] ?? 0);
+        
+        if ($target_user_id === $user_id) {
+            echo json_encode(['error' => 'Cannot modify your own admin status']);
+            exit;
+        }
+        
+        $stmt = $pdo->prepare("UPDATE users SET is_super_admin = ? WHERE id = ?");
+        $stmt->execute([$is_super_admin, $target_user_id]);
         
         echo json_encode(['success' => true]);
     } catch (Exception $e) {

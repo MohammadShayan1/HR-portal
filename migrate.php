@@ -271,6 +271,34 @@ try {
     echo "  SQLite doesn't support modifying column constraints easily.\n";
     echo "  For generic events (not linked to candidates), use NULL or 0 for candidate_id.\n";
     
+    // Add is_super_admin column to users table
+    echo "\nAdding is_super_admin column to users table...\n";
+    try {
+        $pdo->exec("ALTER TABLE users ADD COLUMN is_super_admin INTEGER DEFAULT 0");
+        echo "✓ Added is_super_admin column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ is_super_admin column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    // Create system_settings table for centralized OAuth credentials
+    echo "\nCreating system_settings table for centralized configuration...\n";
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            setting_key TEXT UNIQUE NOT NULL,
+            setting_value TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )");
+        echo "✓ Created system_settings table\n";
+    } catch (PDOException $e) {
+        echo "✓ system_settings table already exists\n";
+    }
+    
     echo "\n✅ Database migration completed successfully!\n";
     echo "\nYou can now delete this migrate.php file.\n";
     

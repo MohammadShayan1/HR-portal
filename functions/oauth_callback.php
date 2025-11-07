@@ -16,8 +16,9 @@ ini_set('display_errors', 1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/core.php';
+require_once __DIR__ . '/system_settings.php';
 
-// Load config
+// Load config (for fallback)
 if (!file_exists(__DIR__ . '/../config.php')) {
     die('Error: config.php not found. Please copy config.example.php to config.php');
 }
@@ -72,10 +73,11 @@ if ($provider === 'google') {
         }
         
         // Step 1: Redirect to Google OAuth consent screen
-        $client_id = $config['google_client_id'] ?? 'YOUR_GOOGLE_CLIENT_ID';
+        $google_config = get_google_oauth_config();
+        $client_id = $google_config['client_id'];
         
-        if ($client_id === 'YOUR_GOOGLE_CLIENT_ID') {
-            die('Google OAuth not configured. Please update config.php with your Google Client ID and Secret.');
+        if (empty($client_id) || $client_id === 'YOUR_GOOGLE_CLIENT_ID') {
+            die('Google OAuth not configured. Please ask your administrator to configure it in the Super Admin panel.');
         }
         
         $scope = 'https://www.googleapis.com/auth/calendar';
@@ -90,7 +92,7 @@ if ($provider === 'google') {
         
         $auth_url = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
             'client_id' => $client_id,
-            'redirect_uri' => $redirect_uri . '?provider=google',
+            'redirect_uri' => $google_config['redirect_uri'],
             'response_type' => 'code',
             'scope' => $scope,
             'access_type' => 'offline',
@@ -117,10 +119,11 @@ if ($provider === 'google') {
             die('OAuth request expired. Please try again.');
         }
         
-        $client_id = $config['google_client_id'] ?? 'YOUR_GOOGLE_CLIENT_ID';
-        $client_secret = $config['google_client_secret'] ?? 'YOUR_GOOGLE_CLIENT_SECRET';
+        $google_config = get_google_oauth_config();
+        $client_id = $google_config['client_id'];
+        $client_secret = $google_config['client_secret'];
         
-        if ($client_secret === 'YOUR_GOOGLE_CLIENT_SECRET') {
+        if (empty($client_secret)) {
             die('Google OAuth not configured properly.');
         }
         
@@ -132,7 +135,7 @@ if ($provider === 'google') {
             'code' => $code,
             'client_id' => $client_id,
             'client_secret' => $client_secret,
-            'redirect_uri' => $redirect_uri . '?provider=google',
+            'redirect_uri' => $google_config['redirect_uri'],
             'grant_type' => 'authorization_code'
         ]));
         
@@ -182,7 +185,13 @@ if ($provider === 'google') {
 elseif ($provider === 'outlook') {
     if ($action === 'connect') {
         // Step 1: Redirect to Microsoft OAuth consent screen
-        $client_id = 'YOUR_MICROSOFT_CLIENT_ID'; // Get from Azure Portal
+        $outlook_config = get_outlook_oauth_config();
+        $client_id = $outlook_config['client_id'];
+        
+        if (empty($client_id)) {
+            die('Outlook OAuth not configured. Please ask your administrator to configure it in the Super Admin panel.');
+        }
+        
         $scope = 'Calendars.ReadWrite offline_access';
         
         $_SESSION['oauth_state'] = bin2hex(random_bytes(16));
@@ -191,7 +200,7 @@ elseif ($provider === 'outlook') {
         $auth_url = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?' . http_build_query([
             'client_id' => $client_id,
             'response_type' => 'code',
-            'redirect_uri' => $redirect_uri . '?provider=outlook',
+            'redirect_uri' => $outlook_config['redirect_uri'],
             'response_mode' => 'query',
             'scope' => $scope,
             'state' => $_SESSION['oauth_state']
@@ -208,8 +217,9 @@ elseif ($provider === 'outlook') {
             die('Invalid state parameter');
         }
         
-        $client_id = 'YOUR_MICROSOFT_CLIENT_ID';
-        $client_secret = 'YOUR_MICROSOFT_CLIENT_SECRET';
+        $outlook_config = get_outlook_oauth_config();
+        $client_id = $outlook_config['client_id'];
+        $client_secret = $outlook_config['client_secret'];
         
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, 'https://login.microsoftonline.com/common/oauth2/v2.0/token');
@@ -219,7 +229,7 @@ elseif ($provider === 'outlook') {
             'client_id' => $client_id,
             'scope' => 'Calendars.ReadWrite offline_access',
             'code' => $code,
-            'redirect_uri' => $redirect_uri . '?provider=outlook',
+            'redirect_uri' => $outlook_config['redirect_uri'],
             'grant_type' => 'authorization_code',
             'client_secret' => $client_secret
         ]));

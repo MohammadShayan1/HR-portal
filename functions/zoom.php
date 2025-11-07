@@ -10,9 +10,12 @@
  * @return array|false Access token or false on failure
  */
 function get_zoom_access_token($user_id) {
-    $zoom_account_id = get_setting('zoom_account_id', $user_id);
-    $zoom_client_id = get_setting('zoom_client_id', $user_id);
-    $zoom_client_secret = get_setting('zoom_client_secret', $user_id);
+    require_once __DIR__ . '/system_settings.php';
+    
+    $zoom_config = get_zoom_oauth_config($user_id);
+    $zoom_account_id = $zoom_config['account_id'];
+    $zoom_client_id = $zoom_config['client_id'];
+    $zoom_client_secret = $zoom_config['client_secret'];
     
     if (empty($zoom_account_id) || empty($zoom_client_id) || empty($zoom_client_secret)) {
         return false;

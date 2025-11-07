@@ -121,6 +121,17 @@ $accent_color = get_setting('theme_accent', $user_id) ?? '#0dcaf0';
                     <a href="index.php?page=settings" class="list-group-item list-group-item-action bg-primary text-white border-0 <?php echo (isset($_GET['page']) && $_GET['page'] == 'settings') ? 'active' : ''; ?>">
                         <i class="bi bi-gear me-2"></i> Settings
                     </a>
+                    <?php
+                    // Show Super Admin link only for super admins
+                    $stmt = $pdo->prepare("SELECT is_super_admin FROM users WHERE id = ?");
+                    $stmt->execute([get_current_user_id()]);
+                    $user_data = $stmt->fetch();
+                    if ($user_data && $user_data['is_super_admin'] == 1):
+                    ?>
+                    <a href="index.php?page=super_admin" class="list-group-item list-group-item-action bg-danger text-white border-0 <?php echo (isset($_GET['page']) && $_GET['page'] == 'super_admin') ? 'active' : ''; ?>">
+                        <i class="bi bi-shield-lock-fill me-2"></i> Super Admin
+                    </a>
+                    <?php endif; ?>
                     <div class="border-top border-white my-2"></div>
                     <a href="gui/logout.php" class="list-group-item list-group-item-action bg-primary text-white border-0">
                         <i class="bi bi-box-arrow-right me-2"></i> Logout

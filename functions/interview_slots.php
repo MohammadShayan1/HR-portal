@@ -312,7 +312,20 @@ function book_interview_slot() {
                 'zoom_join_url' => $slot['meeting_link']
             ];
             
-            sync_meeting_to_calendars($meeting_data, $user_id);
+            $sync_result = sync_meeting_to_calendars($meeting_data, $user_id);
+            
+            // Log sync results
+            $log_dir = __DIR__ . '/../logs';
+            $log_file = $log_dir . '/calendar_sync.log';
+            $log_entry = sprintf(
+                "[%s] Slot ID: %s | Candidate: %s | Google: %s | Outlook: %s\n",
+                date('Y-m-d H:i:s'),
+                $slot_id,
+                $candidate['name'],
+                isset($sync_result['google']['success']) ? 'SUCCESS' : (isset($sync_result['google']['error']) ? $sync_result['google']['error'] : 'DISABLED'),
+                isset($sync_result['outlook']['success']) ? 'SUCCESS' : (isset($sync_result['outlook']['error']) ? $sync_result['outlook']['error'] : 'DISABLED')
+            );
+            @file_put_contents($log_file, $log_entry, FILE_APPEND);
         }
         
         // Send confirmation email

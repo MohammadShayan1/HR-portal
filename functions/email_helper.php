@@ -55,11 +55,31 @@ function send_email_enhanced($to, $subject, $message, $from_name, $from_email = 
  * Enhanced log_email_activity with error message support
  */
 function log_email_activity($candidate_id, $recipient, $subject, $status, $error_message = null) {
+    // Log to dedicated email log file
+    $log_dir = __DIR__ . '/../logs';
+    if (!is_dir($log_dir)) {
+        @mkdir($log_dir, 0755, true);
+    }
+    
+    $log_file = $log_dir . '/email.log';
+    $timestamp = date('Y-m-d H:i:s');
+    $log_entry = sprintf(
+        "[%s] Candidate ID: %s | To: %s | Subject: %s | Status: %s%s\n",
+        $timestamp,
+        $candidate_id,
+        $recipient,
+        $subject,
+        $status,
+        $error_message ? " | Error: $error_message" : ""
+    );
+    
+    @file_put_contents($log_file, $log_entry, FILE_APPEND);
+    
+    // Also log to database
     try {
         require_once __DIR__ . '/db.php';
         $pdo = get_db();
         
-        // Check if error_message column exists, if not, just log without it
         $stmt = $pdo->prepare("
             INSERT INTO email_logs (candidate_id, recipient, subject, status, sent_at, user_agent, ip_address)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -68,29 +88,19 @@ function log_email_activity($candidate_id, $recipient, $subject, $status, $error
         $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'CLI';
         $ip_address = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
         
-        $result = $stmt->execute([
+        $stmt->execute([
             $candidate_id,
             $recipient,
             $subject,
             $status,
-            date('Y-m-d H:i:s'),
+            $timestamp,
             $user_agent,
             $ip_address
         ]);
         
-        // Log to error log if failed to insert
-        if (!$result) {
-            error_log("Failed to log email activity: " . json_encode($pdo->errorInfo()));
-        }
-        
-        // Also log error to PHP error log for debugging
-        if ($status === 'failed' && $error_message) {
-            error_log("Email failed to $recipient: $error_message");
-        }
-        
     } catch (Exception $e) {
-        // Log the error but don't break email sending
-        error_log("Email logging failed: " . $e->getMessage());
+        // If database logging fails, at least we have the file log
+        @file_put_contents($log_file, "[ERROR] Database logging failed: " . $e->getMessage() . "\n", FILE_APPEND);
     }
 }
 

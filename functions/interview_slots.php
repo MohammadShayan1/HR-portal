@@ -376,7 +376,10 @@ function send_scheduling_invitation($candidate_id) {
         $token = $candidate['scheduling_token'];
     }
     
-    $scheduling_url = "http://" . $_SERVER['HTTP_HOST'] . "/HR-portal/schedule.php?token=" . $token;
+    // Use get_base_url() to handle both local and production environments
+    require_once __DIR__ . '/core.php';
+    $base_url = rtrim(get_base_url(), '/');
+    $scheduling_url = $base_url . "/schedule.php?token=" . $token;
     
     $to = $candidate['email'];
     $subject = "Schedule Your Interview - " . $candidate['job_title'];

@@ -348,7 +348,9 @@ $canRun = isset($_GET['test']) && $_GET['test'] === 'run';
                     // Test 12: Database connection
                     try {
                         require_once __DIR__ . '/functions/db.php';
-                        $db = getDBConnection();
+                        $db = get_db();
+                        // Try a simple query to verify connection works
+                        $db->query('SELECT 1');
                         $tests[] = [
                             'status' => 'pass',
                             'label' => 'Database connection',

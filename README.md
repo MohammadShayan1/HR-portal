@@ -102,9 +102,10 @@ php -r "echo bin2hex(random_bytes(32));"
 
 ### **Zoom Meetings**
 1. Go to [Zoom App Marketplace](https://marketplace.zoom.us/)
-2. Create Server-to-Server OAuth app
-3. Copy API Key & Secret
-4. Settings → Zoom Integration → Paste credentials → Test
+2. Create **Server-to-Server OAuth** app (not JWT - deprecated)
+3. Copy Account ID, Client ID, and Client Secret
+4. Add required scopes: `meeting:write`, `meeting:read`, `user:read`
+5. Settings → Zoom Integration → Paste credentials → Test
 
 ### **Google Calendar Sync**
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)

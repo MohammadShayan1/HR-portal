@@ -1,8 +1,67 @@
 <?php
 /**
  * Zoom Integration Functions
- * Create and manage Zoom meetings
+ * Create and manage Zoom meetings using Server-to-Server OAuth
  */
+
+/**
+ * Get Zoom OAuth access token
+ * @param int $user_id User ID for getting Zoom credentials
+ * @return array|false Access token or false on failure
+ */
+function get_zoom_access_token($user_id) {
+    $zoom_account_id = get_setting('zoom_account_id', $user_id);
+    $zoom_client_id = get_setting('zoom_client_id', $user_id);
+    $zoom_client_secret = get_setting('zoom_client_secret', $user_id);
+    
+    if (empty($zoom_account_id) || empty($zoom_client_id) || empty($zoom_client_secret)) {
+        return false;
+    }
+    
+    // Check if we have a cached token
+    $cached_token = get_setting('zoom_access_token', $user_id);
+    $token_expires = get_setting('zoom_token_expires', $user_id);
+    
+    if ($cached_token && $token_expires && time() < $token_expires - 300) {
+        // Token is still valid (with 5-minute buffer)
+        return $cached_token;
+    }
+    
+    // Get new token
+    $url = "https://zoom.us/oauth/token";
+    $auth = base64_encode("$zoom_client_id:$zoom_client_secret");
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Basic ' . $auth,
+        'Content-Type: application/x-www-form-urlencoded'
+    ]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+        'grant_type' => 'account_credentials',
+        'account_id' => $zoom_account_id
+    ]));
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($http_code === 200) {
+        $data = json_decode($response, true);
+        $access_token = $data['access_token'];
+        $expires_in = $data['expires_in'];
+        
+        // Cache the token
+        set_setting('zoom_access_token', $access_token, $user_id);
+        set_setting('zoom_token_expires', time() + $expires_in, $user_id);
+        
+        return $access_token;
+    }
+    
+    return false;
+}
 
 /**
  * Create a Zoom meeting
@@ -13,18 +72,14 @@
  * @return array Meeting details or error
  */
 function create_zoom_meeting($topic, $start_time, $duration, $user_id) {
-    $zoom_api_key = get_setting('zoom_api_key', $user_id);
-    $zoom_api_secret = get_setting('zoom_api_secret', $user_id);
+    $access_token = get_zoom_access_token($user_id);
     
-    if (empty($zoom_api_key) || empty($zoom_api_secret)) {
+    if (!$access_token) {
         return [
             'success' => false,
-            'error' => 'Zoom credentials not configured'
+            'error' => 'Zoom credentials not configured or invalid'
         ];
     }
-    
-    // Generate JWT token for Zoom API
-    $token = generate_zoom_jwt($zoom_api_key, $zoom_api_secret);
     
     // Zoom API endpoint
     $url = "https://api.zoom.us/v2/users/me/meetings";
@@ -53,7 +108,7 @@ function create_zoom_meeting($topic, $start_time, $duration, $user_id) {
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'Authorization: Bearer ' . $token
+        'Authorization: Bearer ' . $access_token
     ]);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
@@ -94,60 +149,25 @@ function create_zoom_meeting($topic, $start_time, $duration, $user_id) {
 }
 
 /**
- * Generate JWT token for Zoom API
- * @param string $api_key Zoom API Key
- * @param string $api_secret Zoom API Secret
- * @return string JWT token
- */
-function generate_zoom_jwt($api_key, $api_secret) {
-    $header = [
-        'alg' => 'HS256',
-        'typ' => 'JWT'
-    ];
-    
-    $payload = [
-        'iss' => $api_key,
-        'exp' => time() + 3600 // Token valid for 1 hour
-    ];
-    
-    $base64_header = base64_url_encode(json_encode($header));
-    $base64_payload = base64_url_encode(json_encode($payload));
-    
-    $signature = hash_hmac('sha256', "$base64_header.$base64_payload", $api_secret, true);
-    $base64_signature = base64_url_encode($signature);
-    
-    return "$base64_header.$base64_payload.$base64_signature";
-}
-
-/**
- * Base64 URL encode
- */
-function base64_url_encode($data) {
-    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
-}
-
-/**
  * Delete a Zoom meeting
  * @param string $meeting_id Zoom meeting ID
  * @param int $user_id User ID for getting Zoom credentials
  * @return array Success status
  */
 function delete_zoom_meeting($meeting_id, $user_id) {
-    $zoom_api_key = get_setting('zoom_api_key', $user_id);
-    $zoom_api_secret = get_setting('zoom_api_secret', $user_id);
+    $access_token = get_zoom_access_token($user_id);
     
-    if (empty($zoom_api_key) || empty($zoom_api_secret)) {
+    if (!$access_token) {
         return ['success' => false, 'error' => 'Zoom credentials not configured'];
     }
     
-    $token = generate_zoom_jwt($zoom_api_key, $zoom_api_secret);
     $url = "https://api.zoom.us/v2/meetings/$meeting_id";
     
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token
+        'Authorization: Bearer ' . $access_token
     ]);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     
@@ -168,23 +188,21 @@ function delete_zoom_meeting($meeting_id, $user_id) {
  * @return array Success status and message
  */
 function test_zoom_connection($user_id) {
-    $zoom_api_key = get_setting('zoom_api_key', $user_id);
-    $zoom_api_secret = get_setting('zoom_api_secret', $user_id);
+    $access_token = get_zoom_access_token($user_id);
     
-    if (empty($zoom_api_key) || empty($zoom_api_secret)) {
+    if (!$access_token) {
         return [
             'success' => false,
-            'error' => 'Zoom credentials not configured'
+            'error' => 'Zoom credentials not configured or invalid'
         ];
     }
     
-    $token = generate_zoom_jwt($zoom_api_key, $zoom_api_secret);
     $url = "https://api.zoom.us/v2/users/me";
     
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $token
+        'Authorization: Bearer ' . $access_token
     ]);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     

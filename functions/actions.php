@@ -227,16 +227,21 @@ function test_linkedin_connection_ajax() {
 function save_zoom_settings() {
     $user_id = get_current_user_id();
     
-    $zoom_api_key = trim($_POST['zoom_api_key'] ?? '');
-    $zoom_api_secret = trim($_POST['zoom_api_secret'] ?? '');
+    $zoom_account_id = trim($_POST['zoom_account_id'] ?? '');
+    $zoom_client_id = trim($_POST['zoom_client_id'] ?? '');
+    $zoom_client_secret = trim($_POST['zoom_client_secret'] ?? '');
     
-    // Save Zoom settings
-    if (!empty($zoom_api_key)) {
-        set_setting('zoom_api_key', $zoom_api_key, $user_id);
+    // Save Zoom Server-to-Server OAuth settings
+    if (!empty($zoom_account_id)) {
+        set_setting('zoom_account_id', $zoom_account_id, $user_id);
     }
     
-    if (!empty($zoom_api_secret)) {
-        set_setting('zoom_api_secret', $zoom_api_secret, $user_id);
+    if (!empty($zoom_client_id)) {
+        set_setting('zoom_client_id', $zoom_client_id, $user_id);
+    }
+    
+    if (!empty($zoom_client_secret)) {
+        set_setting('zoom_client_secret', $zoom_client_secret, $user_id);
     }
     
     header('Location: ../index.php?page=settings&success=1');

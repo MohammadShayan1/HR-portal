@@ -17,8 +17,9 @@ $linkedin_org_id = get_setting('linkedin_org_id');
 $linkedin_auto_post = get_setting('linkedin_auto_post') === '1';
 
 // Get Zoom settings
-$zoom_api_key = get_setting('zoom_api_key');
-$zoom_api_secret = get_setting('zoom_api_secret');
+$zoom_account_id = get_setting('zoom_account_id');
+$zoom_client_id = get_setting('zoom_client_id');
+$zoom_client_secret = get_setting('zoom_client_secret');
 
 // Get calendar sync settings
 $google_calendar_token = get_setting('google_calendar_token');
@@ -235,34 +236,42 @@ $theme_accent = get_setting('theme_accent') ?? '#0dcaf0';
             <div class="card-body">
                 <form method="POST" action="functions/actions.php?action=save_zoom_settings">
                     <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> <strong>How to get Zoom credentials:</strong>
+                        <i class="bi bi-info-circle"></i> <strong>How to get Zoom Server-to-Server OAuth credentials:</strong>
                         <ol class="mb-0 mt-2">
                             <li>Go to <a href="https://marketplace.zoom.us/" target="_blank">Zoom App Marketplace</a></li>
                             <li>Click "Develop" → "Build App"</li>
-                            <li>Choose "JWT" app type</li>
-                            <li>Get your API Key and API Secret</li>
+                            <li>Choose "Server-to-Server OAuth" app type</li>
+                            <li>Copy Account ID, Client ID, and Client Secret</li>
+                            <li>Add scopes: <code>meeting:write</code>, <code>meeting:read</code>, <code>user:read</code></li>
                         </ol>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="zoom_api_key" class="form-label">Zoom API Key</label>
-                        <input type="text" class="form-control" id="zoom_api_key" name="zoom_api_key" 
-                               value="<?php echo sanitize($zoom_api_key ?? ''); ?>" 
-                               placeholder="Your API Key">
-                        <?php if ($zoom_api_key): ?>
+                        <label for="zoom_account_id" class="form-label">Account ID</label>
+                        <input type="text" class="form-control" id="zoom_account_id" name="zoom_account_id" 
+                               value="<?php echo sanitize($zoom_account_id ?? ''); ?>" 
+                               placeholder="Your Zoom Account ID">
+                        <?php if ($zoom_account_id): ?>
                             <div class="mt-2">
                                 <span class="badge bg-success">
-                                    <i class="bi bi-check-circle"></i> API Key Configured
+                                    <i class="bi bi-check-circle"></i> Account ID Configured
                                 </span>
                             </div>
                         <?php endif; ?>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="zoom_api_secret" class="form-label">Zoom API Secret</label>
-                        <input type="password" class="form-control" id="zoom_api_secret" name="zoom_api_secret" 
-                               value="<?php echo sanitize($zoom_api_secret ?? ''); ?>" 
-                               placeholder="Your API Secret">
+                        <label for="zoom_client_id" class="form-label">Client ID</label>
+                        <input type="text" class="form-control" id="zoom_client_id" name="zoom_client_id" 
+                               value="<?php echo sanitize($zoom_client_id ?? ''); ?>" 
+                               placeholder="Your Client ID">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="zoom_client_secret" class="form-label">Client Secret</label>
+                        <input type="password" class="form-control" id="zoom_client_secret" name="zoom_client_secret" 
+                               value="<?php echo sanitize($zoom_client_secret ?? ''); ?>" 
+                               placeholder="Your Client Secret">
                         <small class="form-text text-muted">
                             Used to create Zoom meetings for high-scoring candidates (60+ score)
                         </small>
@@ -272,7 +281,7 @@ $theme_accent = get_setting('theme_accent') ?? '#0dcaf0';
                         <i class="bi bi-camera-video"></i> Save Zoom Settings
                     </button>
                     
-                    <?php if ($zoom_api_key && $zoom_api_secret): ?>
+                    <?php if ($zoom_account_id && $zoom_client_id && $zoom_client_secret): ?>
                         <button type="button" class="btn btn-outline-secondary" onclick="testZoomConnection()">
                             <i class="bi bi-wifi"></i> Test Connection
                         </button>

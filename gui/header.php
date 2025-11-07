@@ -123,6 +123,7 @@ $accent_color = get_setting('theme_accent', $user_id) ?? '#0dcaf0';
                     </a>
                     <?php
                     // Show Super Admin link only for super admins
+                    $pdo = get_db();
                     $stmt = $pdo->prepare("SELECT is_super_admin FROM users WHERE id = ?");
                     $stmt->execute([get_current_user_id()]);
                     $user_data = $stmt->fetch();

@@ -370,6 +370,54 @@ try {
         echo "✓ email_logs table already exists\n";
     }
     
+    // Create interview_slots table for scheduling
+    echo "\nCreating interview_slots table for scheduling...\n";
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS interview_slots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            candidate_id INTEGER,
+            slot_date TEXT NOT NULL,
+            slot_time TEXT NOT NULL,
+            duration INTEGER DEFAULT 30,
+            status TEXT DEFAULT 'available',
+            meeting_link TEXT,
+            created_at TEXT NOT NULL,
+            booked_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id)
+        )");
+        echo "✓ Created interview_slots table\n";
+    } catch (PDOException $e) {
+        echo "✓ interview_slots table already exists\n";
+    }
+    
+    // Add scheduling_token to candidates table
+    echo "Adding scheduling_token column to candidates table...\n";
+    try {
+        $pdo->exec("ALTER TABLE candidates ADD COLUMN scheduling_token TEXT");
+        echo "✓ Added scheduling_token column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ scheduling_token column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
+    // Add slot_id to candidates table
+    echo "Adding slot_id column to candidates table...\n";
+    try {
+        $pdo->exec("ALTER TABLE candidates ADD COLUMN slot_id INTEGER");
+        echo "✓ Added slot_id column\n";
+    } catch (PDOException $e) {
+        if (strpos($e->getMessage(), 'duplicate column name') !== false) {
+            echo "✓ slot_id column already exists\n";
+        } else {
+            throw $e;
+        }
+    }
+    
     echo "\n✅ Database migration completed successfully!\n";
     echo "\nYou can now delete this migrate.php file.\n";
     

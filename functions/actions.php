@@ -12,12 +12,13 @@ require_once __DIR__ . '/theme.php';
 require_once __DIR__ . '/linkedin.php';
 require_once __DIR__ . '/zoom.php';
 require_once __DIR__ . '/calendar_sync.php';
+require_once __DIR__ . '/interview_slots.php';
 
 // Get action from query parameter
 $action = $_GET['action'] ?? '';
 
 // Public actions (no authentication required)
-$public_actions = ['submit_application', 'get_interview_question', 'submit_answer'];
+$public_actions = ['submit_application', 'get_interview_question', 'submit_answer', 'get_available_slots_for_candidate', 'book_interview_slot'];
 
 // Check authentication for non-public actions
 if (!in_array($action, $public_actions)) {
@@ -161,6 +162,34 @@ switch ($action) {
     case 'move_to_accepted':
         require_once __DIR__ . '/candidate_actions.php';
         move_to_accepted();
+        break;
+    
+    // === INTERVIEW SLOTS ACTIONS ===
+    case 'create_interview_slots':
+        create_interview_slots();
+        break;
+
+    case 'delete_interview_slot':
+        delete_interview_slot();
+        break;
+
+    case 'get_available_slots_for_candidate':
+        get_available_slots_for_candidate();
+        break;
+
+    case 'book_interview_slot':
+        book_interview_slot();
+        break;
+
+    case 'send_scheduling_invitation':
+        header('Content-Type: application/json');
+        $candidate_id = $_POST['candidate_id'] ?? '';
+        if (empty($candidate_id)) {
+            echo json_encode(['error' => 'Missing candidate ID']);
+            exit;
+        }
+        $result = send_scheduling_invitation($candidate_id);
+        echo json_encode($result);
         break;
     
     default:
@@ -1249,4 +1278,6 @@ function toggle_super_admin() {
     }
     exit;
 }
+
+
 

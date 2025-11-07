@@ -87,6 +87,11 @@ $stats_stmt = $pdo->prepare("
 ");
 $stats_stmt->execute([':user_id' => $user_id]);
 $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+
+// Ensure stats have default values
+$stats['total_emails'] = $stats['total_emails'] ?? 0;
+$stats['sent_count'] = $stats['sent_count'] ?? 0;
+$stats['failed_count'] = $stats['failed_count'] ?? 0;
 ?>
 
 <!DOCTYPE html>

@@ -610,7 +610,22 @@ Modify `functions/actions.php` to send real emails instead of displaying links.
 
 ## 📝 License
 
-This project is provided as-is for educational and commercial use.
+**PROPRIETARY SOFTWARE - ALL RIGHTS RESERVED**
+
+Copyright © 2025 Mohammad Shayan. All Rights Reserved.
+
+This software is the exclusive property of Mohammad Shayan. **No license is granted** for use, copying, modification, distribution, or any other purpose without explicit written permission from the developer.
+
+### ⚠️ Restrictions:
+- ❌ **NO reuse, copying, or modification** of any code
+- ❌ **NO distribution** or sublicensing
+- ❌ **NO commercial use** without permission
+- ❌ **NO derivative works** allowed
+- ❌ **NO reverse engineering** permitted
+
+Unauthorized use will result in legal action. See [LICENSE](LICENSE) file for complete terms.
+
+For licensing inquiries: GitHub [@MohammadShayan1](https://github.com/MohammadShayan1)
 
 ## 🤝 Support
 
@@ -635,6 +650,9 @@ For issues or questions:
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: 2025  
-**Built with**: ❤️ and AI
+**Version**: 2.2.0  
+**Last Updated**: November 2025  
+**Developer**: Mohammad Shayan  
+**Built with**: ❤️ and AI  
+**License**: Proprietary - All Rights Reserved
+

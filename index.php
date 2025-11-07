@@ -1,7 +1,13 @@
 <?php
 /**
+ * HR Virtual Interview Portal
  * Main Router / Controller
  * Entry point - redirects to home page or admin panel
+ * 
+ * @copyright Copyright (c) 2025 Mohammad Shayan. All Rights Reserved.
+ * @license   Proprietary - No license granted for use, modification, or distribution
+ * @author    Mohammad Shayan
+ * @link      https://github.com/MohammadShayan1/HR-portal
  */
 
 session_start();
@@ -18,7 +24,7 @@ if (is_authenticated()) {
     $page = $_GET['page'] ?? 'dashboard';
     
     // Whitelist of allowed pages
-    $allowed_pages = ['dashboard', 'jobs', 'candidates', 'report', 'settings', 'super_admin', 'email_logs'];
+    $allowed_pages = ['dashboard', 'jobs', 'candidates', 'report', 'settings', 'super_admin', 'email_logs', 'interview_slots'];
     
     // Validate page
     if (!in_array($page, $allowed_pages)) {

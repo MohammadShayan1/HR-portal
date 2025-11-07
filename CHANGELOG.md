@@ -2,6 +2,258 @@
 
 All notable changes to the HR Virtual Interview Portal project.
 
+## [2.2.0] - 2025-11-08
+
+### 🎉 Major Update - Interview Scheduling System & Email Tracking
+
+#### 📅 Automated Interview Scheduling System
+- **Interview Slots Management** (NEW)
+  - Bulk slot creation with date ranges
+  - Configurable time ranges (start/end time)
+  - Multiple duration options (15/30/45/60 minutes)
+  - Day-of-week selection (Mon-Sun)
+  - Automatic Zoom meeting creation for each slot
+  - Statistics dashboard (Total/Available/Booked slots)
+  - Slot status tracking (Available/Booked/Expired)
+  - Delete available slots functionality
+  - View booked candidates per slot
+
+- **Candidate Self-Scheduling** (NEW)
+  - Beautiful public scheduling page (`schedule.php`)
+  - Unique scheduling tokens per candidate
+  - Browse available time slots grouped by date
+  - Interactive slot selection interface
+  - Instant booking confirmation
+  - Mobile-responsive design with gradient UI
+  - Shows already-scheduled interviews
+  - Prevents double-booking automatically
+
+- **Scheduling Invitations**
+  - "Send Scheduling Link" button on Candidates page
+  - Professional email with scheduling link
+  - Button group UI for Applied candidates
+  - Real-time feedback (Sending... → Sent!)
+  - Success confirmation messages
+  - Logged in email tracking system
+
+- **Automatic Zoom Integration**
+  - Toggle "Create Zoom meetings" when creating slots
+  - Each slot gets unique Zoom meeting link
+  - Meeting title includes date/time
+  - Duration matches slot duration
+  - Links stored in database
+  - Included in booking confirmations
+
+- **Booking Confirmation Emails**
+  - Professional HTML email templates
+  - Meeting details (date, time, duration)
+  - Zoom meeting link with "Join Meeting" button
+  - Preparation tips and reminders
+  - Fully tracked in email_logs
+
+#### 📧 Email Tracking & Logging System
+- **Email Logs Page** (NEW - `gui/email_logs.php`)
+  - Comprehensive email activity tracking
+  - Statistics dashboard (Total/Sent/Failed emails)
+  - Success rate percentage calculation
+  - Filter by status (All/Sent/Failed)
+  - Search by candidate name, email, or subject
+  - Pagination (50 emails per page)
+  - Color-coded status badges
+  - Detailed modal for each email log
+
+- **Email Tracking Features**
+  - Every email attempt logged automatically
+  - Track: candidate, recipient, subject, status
+  - User agent and IP address tracking
+  - Timestamp for all sends
+  - Error messages for failed sends
+  - Audit trail for compliance
+
+- **Professional Email Headers**
+  - From: Company Name <noreply@domain.com>
+  - Reply-To: company email
+  - Return-Path for bounce handling
+  - X-Mailer identification
+  - HTML content type
+  - High priority flags
+
+#### 🗃️ Database Changes
+**New Tables**:
+- `interview_slots` - Available interview time slots
+  - Columns: id, user_id, candidate_id, slot_date, slot_time, duration, status, meeting_link, created_at, booked_at
+  
+- `email_logs` - Email delivery tracking
+  - Columns: id, candidate_id, recipient, subject, status, sent_at, user_agent, ip_address
+
+**Updated Tables**:
+- `candidates` table:
+  - Added `scheduling_token` (unique token for scheduling link)
+  - Added `slot_id` (links to booked slot)
+  - Added `candidate_status` (pending/accepted/rejected/scheduled)
+  - Added `meeting_link` (Zoom/video call URL)
+  - Added `email_sent_at` (track invitation sends)
+  - Added `rejection_reason` (optional rejection note)
+
+#### 🎯 Candidate Management Enhancements
+- **Workflow States**
+  - Pending: Newly applied
+  - Scheduled: Interview slot booked
+  - Accepted: Selected for interview
+  - Rejected: Not moving forward
+  
+- **Action Buttons**
+  - Send Scheduling Link (for Applied candidates)
+  - Interview Link (manual interview)
+  - Accept/Reject workflow (backend ready)
+  - View booking details
+
+#### 🔧 Backend Functions
+**New Files**:
+- `functions/interview_slots.php` (370+ lines)
+  - `create_interview_slots()` - Bulk slot creation with Zoom
+  - `delete_interview_slot()` - Remove available slots
+  - `get_available_slots_for_candidate()` - Public API
+  - `book_interview_slot()` - Candidate booking handler
+  - `send_scheduling_invitation()` - Email with link
+  - `send_booking_confirmation_email()` - Confirmation after booking
+  - `log_email_activity()` - Email tracking helper
+
+- `functions/candidate_actions.php` (380+ lines)
+  - Accept/reject candidate handlers
+  - Meeting link management
+  - Email invitation system
+  - Professional email templates
+
+**New Actions** (functions/actions.php):
+- `create_interview_slots` - Create bulk slots
+- `delete_interview_slot` - Delete slot
+- `get_available_slots_for_candidate` - Public: fetch slots
+- `book_interview_slot` - Public: book slot
+- `send_scheduling_invitation` - Email scheduling link
+- `accept_candidate` - Accept for interview
+- `reject_candidate` - Reject application
+- `update_meeting_link` - Edit meeting URL
+- `send_meeting_email` - Send invitation manually
+- `move_to_accepted` - Reconsider rejection
+
+#### 🎨 UI/UX Improvements
+**New Pages**:
+- Interview Slots Management (`gui/interview_slots.php`)
+  - Professional slot creation modal
+  - Statistics cards with color gradients
+  - Responsive table with action buttons
+  - Preview text for slot creation
+  
+- Email Logs Viewer (`gui/email_logs.php`)
+  - Statistics cards (Total/Sent/Failed)
+  - Filter and search interface
+  - Detailed modal for each log
+  - Success rate display
+  - Professional table design
+
+- Candidate Scheduling Page (`schedule.php`)
+  - Public-facing beautiful design
+  - Gradient header background
+  - Slot cards grouped by date
+  - Interactive selection
+  - Confirmation screen
+  - Mobile-optimized
+
+**Navigation Updates**:
+- Added "Interview Slots" menu item
+- Added "Email Logs" menu item
+- Updated candidates page with scheduling button
+- Proper active state highlighting
+
+#### 📊 Features Summary
+
+**For HR Users**:
+1. Create interview slots in bulk (e.g., Mon-Fri 9-5)
+2. Automatic Zoom meeting links created
+3. Send scheduling link to candidates
+4. Track all emails in Email Logs page
+5. View which candidates booked which slots
+6. See success/failure rates of emails
+
+**For Candidates**:
+1. Receive professional scheduling email
+2. Browse available time slots
+3. Select preferred time
+4. Get instant confirmation with Zoom link
+5. Receive reminder email with details
+
+**Email System**:
+- Professional templates with company branding
+- HTML formatted with styling
+- Automatic tracking of all sends
+- Error logging for debugging
+- Success rate monitoring
+- Searchable email history
+
+#### 🔒 Security Updates
+- Public actions properly whitelisted
+- Scheduling tokens cryptographically secure
+- User isolation (can't access other users' slots)
+- Token validation on booking
+- Transaction support for atomic operations
+
+#### ⚡ Performance
+- Efficient bulk slot creation
+- Paginated email logs (50 per page)
+- Database indexes for quick lookups
+- AJAX-powered actions (no page reloads)
+- Optimized queries with proper JOINs
+
+#### 📁 Files Created/Updated
+**New Files** (7):
+- `gui/interview_slots.php` - Slot management page
+- `gui/email_logs.php` - Email tracking page
+- `schedule.php` - Public scheduling page
+- `functions/interview_slots.php` - Slot handlers
+- `functions/candidate_actions.php` - Candidate workflow
+- `EMAIL_LOGS_GUIDE.md` - Documentation
+- `CANDIDATE_MANAGEMENT.md` - Feature docs
+
+**Updated Files** (6):
+- `migrate.php` - New tables and columns
+- `functions/actions.php` - New action handlers
+- `gui/candidates.php` - Scheduling button
+- `gui/header.php` - Navigation menu
+- `index.php` - New page routes
+- `CHANGELOG.md` - This file
+
+#### 📊 Statistics
+- **New Lines of Code**: ~2,000+
+- **New Files**: 7
+- **New Functions**: 15+
+- **New Database Tables**: 2
+- **New Database Columns**: 6
+- **New Action Handlers**: 10
+- **New Email Templates**: 3
+
+#### 🐛 Bug Fixes
+- Fixed session_start() error in email_logs.php (already started in index.php)
+- Fixed database column error (candidates table doesn't have user_id directly)
+- Fixed NULL values in email statistics causing PHP warnings
+- Added null coalescing operators for statistics display
+- Proper JOIN path: email_logs → candidates → jobs → user_id
+
+#### Breaking Changes
+- None - All changes are additions
+
+#### Migration Required
+```bash
+php migrate.php
+```
+
+**Migration adds**:
+- `interview_slots` table
+- `email_logs` table
+- 6 new columns to `candidates` table
+
+---
+
 ## [2.1.0] - 2025-01-XX
 
 ### 🎉 Calendar CRUD Enhancement

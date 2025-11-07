@@ -172,11 +172,17 @@ function filterByJob(jobId) {
                                         </td>
                                         <td>
                                             <?php if ($candidate['status'] === 'Applied'): ?>
-                                                <button class="btn btn-sm btn-secondary" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#interviewModal<?php echo $candidate['id']; ?>">
-                                                    <i class="bi bi-link-45deg"></i> Interview Link
-                                                </button>
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-secondary" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#interviewModal<?php echo $candidate['id']; ?>">
+                                                        <i class="bi bi-link-45deg"></i> Interview Link
+                                                    </button>
+                                                    <button class="btn btn-sm btn-primary" 
+                                                            onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                                        <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                                                    </button>
+                                                </div>
                                             <?php elseif ($candidate['status'] === 'Interview Completed'): ?>
                                                 <a href="functions/actions.php?action=gen_report&candidate_id=<?php echo $candidate['id']; ?>" 
                                                    class="btn btn-sm btn-info">
@@ -258,4 +264,47 @@ function copyInterviewLink(candidateId) {
         btn.innerHTML = originalHtml;
     }, 2000);
 }
+
+function sendSchedulingInvitation(candidateId, candidateName) {
+    if (!confirm(`Send scheduling invitation to ${candidateName}?\n\nThis will email them a link to choose their preferred interview time from available slots.`)) {
+        return;
+    }
+    
+    const btn = event.target;
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+    
+    const formData = new FormData();
+    formData.append('candidate_id', candidateId);
+    
+    fetch('functions/actions.php?action=send_scheduling_invitation', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Sent!';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            alert(`✅ Scheduling invitation sent to ${candidateName}!\n\nThey will receive an email with a link to select their preferred interview time.`);
+            
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            alert('❌ Error: ' + (data.error || 'Failed to send invitation'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        alert('An error occurred while sending the invitation');
+    });
+}
 </script>
+

@@ -16,11 +16,6 @@ $linkedin_access_token = get_setting('linkedin_access_token');
 $linkedin_org_id = get_setting('linkedin_org_id');
 $linkedin_auto_post = get_setting('linkedin_auto_post') === '1';
 
-// Get Zoom settings
-$zoom_account_id = get_setting('zoom_account_id');
-$zoom_client_id = get_setting('zoom_client_id');
-$zoom_client_secret = get_setting('zoom_client_secret');
-
 // Get calendar sync settings
 $google_calendar_token = get_setting('google_calendar_token');
 $google_calendar_sync = get_setting('google_calendar_sync') === '1';
@@ -229,70 +224,6 @@ $theme_accent = get_setting('theme_accent') ?? '#0dcaf0';
             </div>
         </div>
         
-        <div class="card mt-4">
-            <div class="card-header bg-white">
-                <h5 class="mb-0"><i class="bi bi-camera-video"></i> Zoom Integration</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="functions/actions.php?action=save_zoom_settings">
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> <strong>How to get Zoom Server-to-Server OAuth credentials:</strong>
-                        <ol class="mb-0 mt-2">
-                            <li>Go to <a href="https://marketplace.zoom.us/" target="_blank">Zoom App Marketplace</a></li>
-                            <li>Click "Develop" → "Build App"</li>
-                            <li>Choose "Server-to-Server OAuth" app type</li>
-                            <li>Fill in app details and activate the app</li>
-                            <li><strong>Add these scopes:</strong> <code>meeting:write:admin</code>, <code>meeting:read:admin</code></li>
-                            <li>Copy Account ID, Client ID, and Client Secret</li>
-                        </ol>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="zoom_account_id" class="form-label">Account ID</label>
-                        <input type="text" class="form-control" id="zoom_account_id" name="zoom_account_id" 
-                               value="<?php echo sanitize($zoom_account_id ?? ''); ?>" 
-                               placeholder="Your Zoom Account ID">
-                        <?php if ($zoom_account_id): ?>
-                            <div class="mt-2">
-                                <span class="badge bg-success">
-                                    <i class="bi bi-check-circle"></i> Account ID Configured
-                                </span>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="zoom_client_id" class="form-label">Client ID</label>
-                        <input type="text" class="form-control" id="zoom_client_id" name="zoom_client_id" 
-                               value="<?php echo sanitize($zoom_client_id ?? ''); ?>" 
-                               placeholder="Your Client ID">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="zoom_client_secret" class="form-label">Client Secret</label>
-                        <input type="password" class="form-control" id="zoom_client_secret" name="zoom_client_secret" 
-                               value="<?php echo sanitize($zoom_client_secret ?? ''); ?>" 
-                               placeholder="Your Client Secret">
-                        <small class="form-text text-muted">
-                            Used to create Zoom meetings for high-scoring candidates (60+ score)
-                        </small>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-camera-video"></i> Save Zoom Settings
-                    </button>
-                    
-                    <?php if ($zoom_account_id && $zoom_client_id && $zoom_client_secret): ?>
-                        <button type="button" class="btn btn-outline-secondary" onclick="testZoomConnection()">
-                            <i class="bi bi-wifi"></i> Test Connection
-                        </button>
-                    <?php endif; ?>
-                </form>
-                
-                <div id="zoomTestResult" class="mt-3"></div>
-            </div>
-        </div>
-        
         <!-- Calendar Sync Integration -->
         <div class="card mt-4">
             <div class="card-header bg-white">
@@ -480,30 +411,6 @@ function testLinkedInConnection() {
     resultDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> Testing connection...</div>';
     
     fetch('functions/actions.php?action=test_linkedin')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                resultDiv.innerHTML = `<div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> ${data.message}
-                </div>`;
-            } else {
-                resultDiv.innerHTML = `<div class="alert alert-danger">
-                    <i class="bi bi-x-circle"></i> ${data.error}
-                </div>`;
-            }
-        })
-        .catch(error => {
-            resultDiv.innerHTML = `<div class="alert alert-danger">
-                <i class="bi bi-x-circle"></i> Connection test failed: ${error.message}
-            </div>`;
-        });
-}
-
-function testZoomConnection() {
-    const resultDiv = document.getElementById('zoomTestResult');
-    resultDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> Testing connection...</div>';
-    
-    fetch('functions/actions.php?action=test_zoom')
         .then(response => response.json())
         .then(data => {
             if (data.success) {

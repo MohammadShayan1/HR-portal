@@ -40,10 +40,6 @@ $zoom_account_id = get_system_setting('zoom_account_id');
 $zoom_client_id = get_system_setting('zoom_client_id');
 $zoom_client_secret = get_system_setting('zoom_client_secret');
 
-// Get gemini API key from first user (for reference)
-$stmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'gemini_api_key' LIMIT 1");
-$gemini_sample = $stmt->fetch();
-
 // Get stats
 $stmt = $pdo->query("SELECT COUNT(*) as count FROM users");
 $total_users = $stmt->fetch()['count'];

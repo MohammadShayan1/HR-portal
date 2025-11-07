@@ -184,15 +184,27 @@ function filterByJob(jobId) {
                                                     </button>
                                                 </div>
                                             <?php elseif ($candidate['status'] === 'Interview Completed'): ?>
-                                                <a href="functions/actions.php?action=gen_report&candidate_id=<?php echo $candidate['id']; ?>" 
-                                                   class="btn btn-sm btn-info">
-                                                    <i class="bi bi-file-earmark-text"></i> Generate Report
-                                                </a>
+                                                <div class="btn-group" role="group">
+                                                    <a href="functions/actions.php?action=gen_report&candidate_id=<?php echo $candidate['id']; ?>" 
+                                                       class="btn btn-sm btn-info">
+                                                        <i class="bi bi-file-earmark-text"></i> Generate Report
+                                                    </a>
+                                                    <button class="btn btn-sm btn-primary" 
+                                                            onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                                        <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                                                    </button>
+                                                </div>
                                             <?php elseif ($candidate['status'] === 'Report Ready'): ?>
-                                                <a href="index.php?page=report&candidate_id=<?php echo $candidate['id']; ?>" 
-                                                   class="btn btn-sm btn-success">
-                                                    <i class="bi bi-eye"></i> View Report
-                                                </a>
+                                                <div class="btn-group" role="group">
+                                                    <a href="index.php?page=report&candidate_id=<?php echo $candidate['id']; ?>" 
+                                                       class="btn btn-sm btn-success">
+                                                        <i class="bi bi-eye"></i> View Report
+                                                    </a>
+                                                    <button class="btn btn-sm btn-primary" 
+                                                            onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                                        <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                                                    </button>
+                                                </div>
                                             <?php endif; ?>
                                         </td>
                                     </tr>

@@ -144,6 +144,12 @@ $qa_pairs = $stmt->fetchAll();
                                 <i class="bi bi-x-circle"></i> Limit Reached
                             </button>
                         <?php endif; ?>
+                        
+                        <?php if ($report['score'] >= 60): ?>
+                            <button class="btn btn-sm btn-success ms-2" onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                            </button>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -300,6 +306,43 @@ $qa_pairs = $stmt->fetchAll();
 </div>
 
 <script>
+function sendSchedulingInvitation(candidateId, candidateName) {
+    if (!confirm(`Send scheduling invitation to ${candidateName}?\n\nThis will email them a link to choose their preferred interview time from available slots.`)) {
+        return;
+    }
+    
+    const btn = event.target;
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+    
+    const formData = new FormData();
+    formData.append('candidate_id', candidateId);
+    
+    fetch('functions/actions.php?action=send_scheduling_invitation', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Sent!';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+            alert(`✅ Scheduling invitation sent to ${candidateName}!\n\nThey will receive an email with a link to select their preferred interview time.`);
+        } else {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            alert('Error: ' + (data.error || 'Failed to send invitation'));
+        }
+    })
+    .catch(error => {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        alert('Error: ' + error.message);
+    });
+}
+
 function regenerateReport() {
     if (!confirm('Are you sure you want to regenerate this report? This will replace the existing evaluation.')) {
         return;

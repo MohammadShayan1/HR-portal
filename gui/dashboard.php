@@ -473,12 +473,12 @@ $theme_accent = get_setting('theme_accent') ?? '#f093fb';
                     
                     <div class="mb-3">
                         <label for="eventTitle" class="form-label">Title *</label>
-                        <input type="text" class="form-control" id="eventTitle" name="title" required>
+                        <input type="text" class="form-control" id="eventTitle" name="event_title" required>
                     </div>
                     
                     <div class="mb-3">
                         <label for="eventDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="eventDescription" name="description" rows="3"></textarea>
+                        <textarea class="form-control" id="eventDescription" name="event_description" rows="3"></textarea>
                     </div>
                     
                     <div class="row">
@@ -494,23 +494,23 @@ $theme_accent = get_setting('theme_accent') ?? '#f093fb';
                     
                     <div class="mb-3">
                         <label for="eventDuration" class="form-label">Duration (minutes)</label>
-                        <input type="number" class="form-control" id="eventDuration" name="duration" value="60" min="15" step="15">
+                        <input type="number" class="form-control" id="eventDuration" name="event_duration" value="60" min="15" step="15">
                     </div>
                     
                     <div class="mb-3">
                         <label for="eventLocation" class="form-label">Location / Link</label>
-                        <input type="text" class="form-control" id="eventLocation" name="location" placeholder="Meeting room or video link">
+                        <input type="text" class="form-control" id="eventLocation" name="event_location" placeholder="Meeting room or video link">
                     </div>
                     
                     <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="syncToGoogle" name="sync_to_google">
+                        <input class="form-check-input" type="checkbox" id="syncToGoogle" name="sync_google">
                         <label class="form-check-label" for="syncToGoogle">
                             Sync to Google Calendar
                         </label>
                     </div>
                     
                     <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="syncToOutlook" name="sync_to_outlook">
+                        <input class="form-check-input" type="checkbox" id="syncToOutlook" name="sync_outlook">
                         <label class="form-check-label" for="syncToOutlook">
                             Sync to Outlook Calendar
                         </label>
@@ -792,29 +792,29 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (eventObj) {
             // Edit mode
-            document.getElementById('eventModalLabel').textContent = 'Edit Event';
-            document.getElementById('event_id').value = eventObj.id;
-            document.getElementById('event_source').value = eventObj.extendedProps.source || 'internal';
-            document.getElementById('event_type').value = eventObj.extendedProps.event_type || 'meeting';
-            document.getElementById('event_title').value = eventObj.title;
-            document.getElementById('event_description').value = eventObj.extendedProps.description || '';
+            document.getElementById('eventFormTitle').textContent = '✏️ Edit Event';
+            document.getElementById('eventId').value = eventObj.id;
+            document.getElementById('eventSource').value = eventObj.extendedProps.source || 'internal';
+            document.getElementById('eventType').value = eventObj.extendedProps.event_type || 'meeting';
+            document.getElementById('eventTitle').value = eventObj.title;
+            document.getElementById('eventDescription').value = eventObj.extendedProps.description || '';
             
             var startDate = new Date(eventObj.start);
-            document.getElementById('event_date').value = startDate.toISOString().split('T')[0];
-            document.getElementById('event_time').value = startDate.toTimeString().slice(0, 5);
-            document.getElementById('event_duration').value = eventObj.extendedProps.duration || 60;
-            document.getElementById('event_location').value = eventObj.extendedProps.location || '';
+            document.getElementById('eventDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('eventTime').value = startDate.toTimeString().slice(0, 5);
+            document.getElementById('eventDuration').value = eventObj.extendedProps.duration || 60;
+            document.getElementById('eventLocation').value = eventObj.extendedProps.location || '';
             
-            document.getElementById('sync_google').checked = eventObj.extendedProps.sync_google || false;
-            document.getElementById('sync_outlook').checked = eventObj.extendedProps.sync_outlook || false;
+            document.getElementById('syncToGoogle').checked = eventObj.extendedProps.sync_google || false;
+            document.getElementById('syncToOutlook').checked = eventObj.extendedProps.sync_outlook || false;
         } else {
             // Add mode
-            document.getElementById('eventModalLabel').textContent = 'Add Event';
-            document.getElementById('event_id').value = '';
-            document.getElementById('event_source').value = 'internal';
+            document.getElementById('eventFormTitle').textContent = '➕ Add Event';
+            document.getElementById('eventId').value = '';
+            document.getElementById('eventSource').value = 'internal';
             
             if (dateStr) {
-                document.getElementById('event_date').value = dateStr;
+                document.getElementById('eventDate').value = dateStr;
             }
         }
         

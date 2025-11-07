@@ -47,8 +47,9 @@ $provider = $_GET['provider'] ?? '';
 $action = $_GET['action'] ?? '';
 $code = $_GET['code'] ?? '';
 
-// Verify origin for security (skip if function doesn't exist)
-if (function_exists('verify_origin') && !verify_origin()) {
+// Skip origin verification for OAuth callbacks (they come from external providers)
+// Only verify origin for initial connect requests
+if ($action === 'connect' && function_exists('verify_origin') && !verify_origin()) {
     if (function_exists('log_security_event')) {
         log_security_event('oauth_invalid_origin', ['provider' => $provider]);
     }

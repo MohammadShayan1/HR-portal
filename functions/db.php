@@ -163,3 +163,24 @@ function set_setting($key, $value, $user_id = null) {
     $stmt = $pdo->prepare("INSERT OR REPLACE INTO settings (user_id, key, value) VALUES (?, ?, ?)");
     $stmt->execute([$user_id, $key, $value]);
 }
+
+/**
+ * Delete a setting for a user
+ * @param string $key
+ * @param int|null $user_id Optional user ID, defaults to current user
+ */
+function delete_setting($key, $user_id = null) {
+    if ($user_id === null) {
+        if (function_exists('get_current_user_id')) {
+            $user_id = get_current_user_id();
+        }
+    }
+    
+    if (!$user_id) {
+        return;
+    }
+    
+    $pdo = get_db();
+    $stmt = $pdo->prepare("DELETE FROM settings WHERE user_id = ? AND key = ?");
+    $stmt->execute([$user_id, $key]);
+}

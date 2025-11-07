@@ -48,32 +48,19 @@ class TypingAnalyzer {
             this.wasPasted = true;
             this.pasteCount++;
             
+            // Just track paste events, no warnings shown to user
             const pastedText = (e.clipboardData || window.clipboardData).getData('text');
-            
-            // If pasted text is > 50 characters, it's likely AI-generated
-            if (pastedText.length > 50) {
-                this.showWarning();
-            }
         });
         
         // Track copy events
         this.textarea.addEventListener('copy', () => {
-            console.log('Copy detected - possible AI assistance');
+            console.log('Copy detected - tracking for analysis');
         });
     }
     
     showWarning() {
-        // Visual feedback to discourage cheating
-        const warning = document.createElement('div');
-        warning.className = 'alert alert-warning alert-dismissible fade show mt-2';
-        warning.innerHTML = `
-            <i class="bi bi-exclamation-triangle"></i> 
-            <strong>Note:</strong> Paste detected. Please type your own answer for authentic evaluation.
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        this.textarea.parentElement.insertBefore(warning, this.textarea.nextSibling);
-        
-        setTimeout(() => warning.remove(), 5000);
+        // Warning disabled - let candidates work freely
+        // Data is still tracked for backend analysis
     }
     
     getMetadata() {
@@ -161,13 +148,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 scoreInput.value = suspicionScore;
                 form.appendChild(scoreInput);
                 
-                // If highly suspicious, show confirmation
-                if (suspicionScore > 60) {
-                    if (!confirm('Your answer patterns suggest external assistance. Are you sure you want to submit?')) {
-                        e.preventDefault();
-                        return false;
-                    }
-                }
+                // No confirmation prompts - let candidates submit freely
+                // Suspicion scores are tracked for backend analysis only
             });
         }
     }

@@ -164,7 +164,7 @@ function fetch_google_calendar_events($user_id, $time_min = null, $time_max = nu
     $access_token = get_google_access_token($user_id);
     
     if (!$access_token) {
-        return ['error' => 'Google Calendar not connected'];
+        return ['error' => 'Google Calendar not connected. Please reconnect in Settings.'];
     }
     
     $time_min = $time_min ?: date('c', strtotime('-30 days'));
@@ -189,9 +189,32 @@ function fetch_google_calendar_events($user_id, $time_min = null, $time_max = nu
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
+    // If unauthorized (401), try to refresh token and retry once
+    if ($http_code === 401) {
+        $refreshed_token = get_google_access_token($user_id, true); // Force refresh
+        
+        if ($refreshed_token) {
+            // Retry with new token
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $refreshed_token
+            ]);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            
+            $response = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+        }
+    }
+    
     if ($http_code === 200) {
         return json_decode($response, true);
     } else {
+        if ($http_code === 401) {
+            return ['error' => 'Google Calendar authentication expired. Please reconnect in Settings → Calendar Integration.'];
+        }
         return ['error' => 'Failed to fetch Google Calendar events: ' . $response];
     }
 }
@@ -429,7 +452,7 @@ function refresh_google_access_token($user_id) {
 /**
  * Get valid Google access token (auto-refresh if expired)
  */
-function get_google_access_token($user_id) {
+function get_google_access_token($user_id, $force_refresh = false) {
     require_once __DIR__ . '/security.php';
     
     $encrypted_token = get_setting('google_calendar_token', $user_id);
@@ -439,13 +462,18 @@ function get_google_access_token($user_id) {
         return false;
     }
     
-    // Check if token is expired or will expire soon (5 min buffer)
-    if (!empty($token_expiry) && $token_expiry < (time() + 300)) {
+    // Force refresh if requested or check if token is expired
+    if ($force_refresh || (!empty($token_expiry) && $token_expiry < (time() + 300))) {
         // Try to refresh the token
         $new_token = refresh_google_access_token($user_id);
         if ($new_token) {
             return $new_token;
         }
+        // If refresh failed, clear invalid tokens to force re-authentication
+        delete_setting('google_calendar_token', $user_id);
+        delete_setting('google_calendar_token_expiry', $user_id);
+        delete_setting('google_calendar_refresh_token', $user_id);
+        return false;
     }
     
     // Return existing token

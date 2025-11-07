@@ -14,14 +14,22 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/core.php';
-require_once __DIR__ . '/security.php';
 
 // Load config
 if (!file_exists(__DIR__ . '/../config.php')) {
     die('Error: config.php not found. Please copy config.example.php to config.php');
 }
 $config = require(__DIR__ . '/../config.php');
+
+// Start session BEFORE loading security.php (which tries to configure session)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Now load security functions
+require_once __DIR__ . '/security.php';
 
 // Force HTTPS for OAuth
 if (($config['force_https'] ?? false)) {
@@ -33,16 +41,6 @@ if (($config['force_https'] ?? false)) {
 // Add security headers
 if (function_exists('add_security_headers')) {
     add_security_headers();
-}
-
-// Start session if not already started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// Initialize secure session (but don't die if it fails during OAuth)
-if (function_exists('init_secure_session')) {
-    init_secure_session();
 }
 
 $provider = $_GET['provider'] ?? '';

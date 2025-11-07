@@ -163,10 +163,18 @@ function add_to_outlook_calendar($meeting_data, $user_id) {
  * Fetch events from Google Calendar
  */
 function fetch_google_calendar_events($user_id, $time_min = null, $time_max = null) {
-    $access_token = get_setting('google_calendar_token', $user_id);
+    $encrypted_token = get_setting('google_calendar_token', $user_id);
     
-    if (empty($access_token)) {
+    if (empty($encrypted_token)) {
         return ['error' => 'Google Calendar not connected'];
+    }
+    
+    // Decrypt the token
+    require_once __DIR__ . '/security.php';
+    $access_token = decrypt_data($encrypted_token);
+    
+    if (!$access_token) {
+        return ['error' => 'Failed to decrypt token. Please reconnect Google Calendar.'];
     }
     
     $time_min = $time_min ?: date('c', strtotime('-30 days'));
@@ -185,6 +193,7 @@ function fetch_google_calendar_events($user_id, $time_min = null, $time_max = nu
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . $access_token
     ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -201,10 +210,18 @@ function fetch_google_calendar_events($user_id, $time_min = null, $time_max = nu
  * Fetch events from Microsoft Outlook Calendar
  */
 function fetch_outlook_calendar_events($user_id, $time_min = null, $time_max = null) {
-    $access_token = get_setting('outlook_calendar_token', $user_id);
+    $encrypted_token = get_setting('outlook_calendar_token', $user_id);
     
-    if (empty($access_token)) {
+    if (empty($encrypted_token)) {
         return ['error' => 'Microsoft Outlook not connected'];
+    }
+    
+    // Decrypt the token
+    require_once __DIR__ . '/security.php';
+    $access_token = decrypt_data($encrypted_token);
+    
+    if (!$access_token) {
+        return ['error' => 'Failed to decrypt token. Please reconnect Microsoft Outlook.'];
     }
     
     $time_min = $time_min ?: date('c', strtotime('-30 days'));
@@ -222,6 +239,7 @@ function fetch_outlook_calendar_events($user_id, $time_min = null, $time_max = n
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . $access_token
     ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);

@@ -79,14 +79,18 @@ require_once __DIR__ . '/../functions/calendar_sync.php';
 $google_sync_enabled = get_setting('google_calendar_sync', $user_id) === '1';
 if ($google_sync_enabled) {
     $google_events = fetch_google_calendar_events($user_id);
-    if (isset($google_events['items'])) {
+    if (isset($google_events['items']) && is_array($google_events['items'])) {
         foreach ($google_events['items'] as $event) {
+            // Skip events without start time
+            if (!isset($event['start'])) continue;
+            
             $calendar_events[] = [
                 'id' => 'google_' . $event['id'],
                 'title' => '📅 ' . ($event['summary'] ?? 'Untitled'),
                 'start' => $event['start']['dateTime'] ?? $event['start']['date'],
                 'end' => $event['end']['dateTime'] ?? $event['end']['date'],
                 'backgroundColor' => '#34a853',
+                'borderColor' => '#34a853',
                 'extendedProps' => [
                     'source' => 'google',
                     'description' => $event['description'] ?? '',
@@ -102,14 +106,18 @@ if ($google_sync_enabled) {
 $outlook_sync_enabled = get_setting('outlook_calendar_sync', $user_id) === '1';
 if ($outlook_sync_enabled) {
     $outlook_events = fetch_outlook_calendar_events($user_id);
-    if (isset($outlook_events['value'])) {
+    if (isset($outlook_events['value']) && is_array($outlook_events['value'])) {
         foreach ($outlook_events['value'] as $event) {
+            // Skip events without start time
+            if (!isset($event['start'])) continue;
+            
             $calendar_events[] = [
                 'id' => 'outlook_' . $event['id'],
                 'title' => '📧 ' . ($event['subject'] ?? 'Untitled'),
                 'start' => $event['start']['dateTime'],
                 'end' => $event['end']['dateTime'],
                 'backgroundColor' => '#0078d4',
+                'borderColor' => '#0078d4',
                 'extendedProps' => [
                     'source' => 'outlook',
                     'description' => strip_tags($event['body']['content'] ?? ''),

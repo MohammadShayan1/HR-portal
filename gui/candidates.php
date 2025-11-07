@@ -298,57 +298,95 @@ function copyInterviewLink(candidateId) {
 }
 
 function sendSchedulingInvitation(candidateId, candidateName) {
-    if (!confirm(`Send scheduling invitation to ${candidateName}?\n\nThis will email them a link to choose their preferred interview time from available slots.`)) {
-        return;
-    }
-    
-    const btn = event.target;
-    const originalHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
-    
-    const formData = new FormData();
-    formData.append('candidate_id', candidateId);
-    
-    fetch('functions/actions.php?action=send_scheduling_invitation', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.text();
-    })
-    .then(text => {
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch (e) {
-            console.error('Response text:', text);
-            throw new Error('Invalid JSON response from server');
+    Swal.fire({
+        title: 'Send Scheduling Invitation?',
+        html: `Send scheduling invitation to <strong>${candidateName}</strong>?<br><br>This will email them a link to choose their preferred interview time from available slots.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#0d6efd',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, send it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (!result.isConfirmed) {
+            return;
         }
         
-        if (data.success) {
-            btn.innerHTML = '<i class="bi bi-check-circle"></i> Sent!';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-success');
-            alert(`✅ Scheduling invitation sent to ${candidateName}!\n\nThey will receive an email with a link to select their preferred interview time.`);
+        const btn = event.target;
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+        
+        // Show loading
+        Swal.fire({
+            title: 'Sending Invitation...',
+            text: 'Please wait',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        const formData = new FormData();
+        formData.append('candidate_id', candidateId);
+        
+        fetch('functions/actions.php?action=send_scheduling_invitation', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(text => {
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('Response text:', text);
+                throw new Error('Invalid JSON response from server');
+            }
             
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        } else {
+            if (data.success) {
+                btn.innerHTML = '<i class="bi bi-check-circle"></i> Sent!';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-success');
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Invitation Sent!',
+                    html: `Scheduling invitation sent to <strong>${candidateName}</strong>!<br><br>They will receive an email with a link to select their preferred interview time.`,
+                    showConfirmButton: true
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: data.error || 'Failed to send invitation',
+                    showConfirmButton: true
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
             btn.innerHTML = originalHtml;
             btn.disabled = false;
-            alert('❌ Error: ' + (data.error || 'Failed to send invitation'));
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
-        alert('Error: ' + error.message);
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: error.message,
+                showConfirmButton: true
+            });
+        });
     });
 }
 </script>

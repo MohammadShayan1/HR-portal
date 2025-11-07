@@ -359,6 +359,23 @@ $stats = [
 function createSlots() {
     const form = document.getElementById('createSlotsForm');
     const formData = new FormData(form);
+    const createButton = document.querySelector('[onclick="createSlots()"]');
+    const originalButtonText = createButton.innerHTML;
+    
+    // Disable button and show loading state
+    createButton.disabled = true;
+    createButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating Slots...';
+    
+    // Show loading modal
+    Swal.fire({
+        title: 'Creating Slots...',
+        html: 'Please wait while we create your interview slots.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
     
     fetch('functions/actions.php?action=create_interview_slots', {
         method: 'POST',
@@ -366,50 +383,112 @@ function createSlots() {
     })
     .then(response => response.json())
     .then(data => {
+        // Re-enable button and restore text
+        createButton.disabled = false;
+        createButton.innerHTML = originalButtonText;
+        
         if (data.success) {
             let message = `Successfully created ${data.count} interview slots!`;
             
             if (data.zoom_enabled && !data.warning) {
-                message += '\n\n✅ Zoom meetings created for each slot!';
+                message += '<br><br>✅ Zoom meetings created for each slot!';
             } else if (data.warning) {
-                message += '\n\n⚠️ ' + data.warning;
+                message += '<br><br>⚠️ ' + data.warning;
                 if (data.zoom_error) {
-                    message += '\n\nError: ' + data.zoom_error;
+                    message += '<br><br>Error: ' + data.zoom_error;
                 }
             }
             
-            alert(message);
-            location.reload();
+            Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                html: message,
+                showConfirmButton: true,
+                confirmButtonText: 'OK'
+            }).then(() => {
+                location.reload();
+            });
         } else {
-            alert('Error: ' + (data.error || 'Failed to create slots'));
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: data.error || 'Failed to create slots',
+                showConfirmButton: true
+            });
         }
     })
     .catch(error => {
+        // Re-enable button on error
+        createButton.disabled = false;
+        createButton.innerHTML = originalButtonText;
+        
         console.error('Error:', error);
-        alert('An error occurred while creating slots');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: 'An error occurred while creating slots',
+            showConfirmButton: true
+        });
     });
 }
 
 function deleteSlot(slotId) {
-    if (!confirm('Are you sure you want to delete this slot?')) return;
-    
-    fetch(`functions/actions.php?action=delete_interview_slot&slot_id=${slotId}`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Slot deleted successfully');
-            location.reload();
-        } else {
-            alert('Error: ' + (data.error || 'Failed to delete slot'));
+    Swal.fire({
+        title: 'Are you sure?',
+        text: 'Do you want to delete this slot?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Deleting...',
+                text: 'Please wait',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            fetch(`functions/actions.php?action=delete_interview_slot&slot_id=${slotId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Deleted!',
+                        text: 'Slot deleted successfully',
+                        showConfirmButton: true
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: data.error || 'Failed to delete slot',
+                        showConfirmButton: true
+                    });
+                }
+            });
         }
     });
 }
 
 function editSlot(slotId) {
     // TODO: Implement edit functionality
-    alert('Edit functionality coming soon!');
+    Swal.fire({
+        icon: 'info',
+        title: 'Coming Soon',
+        text: 'Edit functionality will be available soon!',
+        showConfirmButton: true
+    });
 }
 
 function viewBooking(slotId) {
@@ -418,7 +497,12 @@ function viewBooking(slotId) {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                alert('Error: ' + data.error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.error,
+                    showConfirmButton: true
+                });
                 return;
             }
             
@@ -448,7 +532,12 @@ function viewBooking(slotId) {
         })
         .catch(error => {
             console.error('Error fetching booking details:', error);
-            alert('Failed to load booking details');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to load booking details',
+                showConfirmButton: true
+            });
         });
 }
 
@@ -532,40 +621,80 @@ function confirmBulkDelete() {
         .map(cb => cb.value);
     
     if (selectedIds.length === 0) {
-        alert('Please select at least one slot to delete');
+        Swal.fire({
+            icon: 'warning',
+            title: 'No Selection',
+            text: 'Please select at least one slot to delete',
+            showConfirmButton: true
+        });
         return;
     }
     
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} slot(s)?\n\nThis action cannot be undone.`)) {
-        return;
-    }
-    
-    // Delete slots one by one
-    let deleted = 0;
-    let failed = 0;
-    
-    const deletePromises = selectedIds.map(slotId => 
-        fetch(`functions/actions.php?action=delete_interview_slot&slot_id=${slotId}`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                deleted++;
-            } else {
-                failed++;
-            }
-        })
-        .catch(() => failed++)
-    );
-    
-    Promise.all(deletePromises).then(() => {
-        if (failed === 0) {
-            alert(`✅ Successfully deleted ${deleted} slot(s)!`);
-        } else {
-            alert(`Deleted ${deleted} slot(s).\n${failed} slot(s) failed to delete (may be booked).`);
+    Swal.fire({
+        title: 'Are you sure?',
+        html: `You are about to delete <strong>${selectedIds.length}</strong> slot(s).<br><br>This action cannot be undone.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete them!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (!result.isConfirmed) {
+            return;
         }
-        location.reload();
+        
+        // Show loading
+        Swal.fire({
+            title: 'Deleting Slots...',
+            html: 'Please wait while we delete the selected slots.',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // Delete slots one by one
+        let deleted = 0;
+        let failed = 0;
+        
+        const deletePromises = selectedIds.map(slotId => 
+            fetch(`functions/actions.php?action=delete_interview_slot&slot_id=${slotId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    deleted++;
+                } else {
+                    failed++;
+                }
+            })
+            .catch(() => failed++)
+        );
+        
+        Promise.all(deletePromises).then(() => {
+            if (failed === 0) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: `Successfully deleted ${deleted} slot(s)!`,
+                    showConfirmButton: true
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Partial Success',
+                    html: `Deleted ${deleted} slot(s).<br>${failed} slot(s) failed to delete (may be booked).`,
+                    showConfirmButton: true
+                }).then(() => {
+                    location.reload();
+                });
+            }
+        });
     });
 }
 

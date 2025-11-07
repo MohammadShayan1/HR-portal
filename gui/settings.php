@@ -459,19 +459,45 @@ function testGoogleCalendar() {
 }
 
 function disconnectGoogleCalendar() {
-    if (confirm('Are you sure you want to disconnect Google Calendar?')) {
-        fetch('functions/actions.php?action=disconnect_google_calendar', {
-            method: 'POST'
-        })
+    Swal.fire({
+        title: 'Disconnect Google Calendar?',
+        text: 'Are you sure you want to disconnect Google Calendar?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, disconnect!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Disconnecting...',
+                text: 'Please wait',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            fetch('functions/actions.php?action=disconnect_google_calendar', {
+                method: 'POST'
+            })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     window.location.reload();
                 } else {
-                    alert('Error: ' + data.error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: data.error,
+                        showConfirmButton: true
+                    });
                 }
             });
-    }
+        }
+    });
 }
 
 function connectOutlookCalendar() {
@@ -503,19 +529,45 @@ function testOutlookCalendar() {
 }
 
 function disconnectOutlookCalendar() {
-    if (confirm('Are you sure you want to disconnect Outlook Calendar?')) {
-        fetch('functions/actions.php?action=disconnect_outlook_calendar', {
-            method: 'POST'
-        })
+    Swal.fire({
+        title: 'Disconnect Outlook Calendar?',
+        text: 'Are you sure you want to disconnect Outlook Calendar?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, disconnect!',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Disconnecting...',
+                text: 'Please wait',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            fetch('functions/actions.php?action=disconnect_outlook_calendar', {
+                method: 'POST'
+            })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     window.location.reload();
                 } else {
-                    alert('Error: ' + data.error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: data.error,
+                        showConfirmButton: true
+                    });
                 }
             });
-    }
+        }
+    });
 }
 
 function saveCalendarSettings() {
@@ -544,7 +596,12 @@ function saveCalendarSettings() {
                     setTimeout(() => notification.remove(), 300);
                 }, 2000);
             } else {
-                alert('Error: ' + data.error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: data.error,
+                    showConfirmButton: true
+                });
             }
         })
         .catch(error => {

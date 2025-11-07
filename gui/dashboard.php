@@ -1374,31 +1374,42 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (!confirm('Are you sure you want to delete this event?')) {
-            return;
-        }
-        
-        var formData = new FormData();
-        formData.append('action', 'delete_calendar_event');
-        formData.append('event_id', eventId);
-        
-        fetch('functions/actions.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Event deleted successfully!', 'success');
-                event.remove();
-                bootstrap.Modal.getInstance(document.getElementById('meetingModal')).hide();
-            } else {
-                showToast(data.error || 'Failed to delete event', 'danger');
+        Swal.fire({
+            title: 'Delete Event?',
+            text: 'Are you sure you want to delete this event?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (!result.isConfirmed) {
+                return;
             }
-        })
-        .catch(error => {
-            showToast('Error deleting event', 'danger');
-            console.error('Error:', error);
+            
+            var formData = new FormData();
+            formData.append('action', 'delete_calendar_event');
+            formData.append('event_id', eventId);
+            
+            fetch('functions/actions.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Event deleted successfully!', 'success');
+                    event.remove();
+                    bootstrap.Modal.getInstance(document.getElementById('meetingModal')).hide();
+                } else {
+                    showToast(data.error || 'Failed to delete event', 'danger');
+                }
+            })
+            .catch(error => {
+                showToast('Error deleting event', 'danger');
+                console.error('Error:', error);
+            });
         });
     };
     

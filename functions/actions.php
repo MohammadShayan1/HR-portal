@@ -4,6 +4,10 @@
  * Processes all form submissions and AJAX requests
  */
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 session_start();
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
@@ -183,13 +187,21 @@ switch ($action) {
 
     case 'send_scheduling_invitation':
         header('Content-Type: application/json');
-        $candidate_id = $_POST['candidate_id'] ?? '';
-        if (empty($candidate_id)) {
-            echo json_encode(['error' => 'Missing candidate ID']);
-            exit;
+        try {
+            $candidate_id = $_POST['candidate_id'] ?? '';
+            if (empty($candidate_id)) {
+                echo json_encode(['error' => 'Missing candidate ID']);
+                exit;
+            }
+            $result = send_scheduling_invitation($candidate_id);
+            if ($result === null) {
+                echo json_encode(['error' => 'Function returned null']);
+            } else {
+                echo json_encode($result);
+            }
+        } catch (Exception $e) {
+            echo json_encode(['error' => 'Exception: ' . $e->getMessage()]);
         }
-        $result = send_scheduling_invitation($candidate_id);
-        echo json_encode($result);
         break;
     
     default:

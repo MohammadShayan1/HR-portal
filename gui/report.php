@@ -144,12 +144,6 @@ $qa_pairs = $stmt->fetchAll();
                                 <i class="bi bi-x-circle"></i> Limit Reached
                             </button>
                         <?php endif; ?>
-                        
-                        <?php if ($report['score'] >= 60): ?>
-                            <button class="btn btn-sm btn-success ms-2" onclick="scheduleMeeting()">
-                                <i class="bi bi-calendar-plus"></i> Schedule Meeting
-                            </button>
-                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -334,98 +328,7 @@ function regenerateReport() {
             btn.innerHTML = originalHtml;
         });
 }
-
-function scheduleMeeting() {
-    const modal = new bootstrap.Modal(document.getElementById('scheduleMeetingModal'));
-    modal.show();
-}
-
-function submitMeeting() {
-    const btn = document.getElementById('submitMeetingBtn');
-    const originalHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Scheduling...';
-    
-    const formData = new FormData(document.getElementById('scheduleMeetingForm'));
-    formData.append('candidate_id', '<?php echo $candidate['id']; ?>');
-    
-    fetch('functions/actions.php?action=schedule_meeting', {
-        method: 'POST',
-        body: formData
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert('Error: ' + data.error);
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
-            } else if (data.success) {
-                alert('Meeting scheduled successfully! Zoom link has been created.');
-                bootstrap.Modal.getInstance(document.getElementById('scheduleMeetingModal')).hide();
-                window.location.reload();
-            }
-        })
-        .catch(error => {
-            alert('Error scheduling meeting: ' + error.message);
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-        });
-}
 </script>
-
-<!-- Schedule Meeting Modal -->
-<div class="modal fade" id="scheduleMeetingModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-calendar-plus"></i> Schedule Meeting with <?php echo sanitize($candidate['name']); ?></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="scheduleMeetingForm">
-                    <div class="mb-3">
-                        <label class="form-label">Meeting Title</label>
-                        <input type="text" class="form-control" name="title" value="Interview - <?php echo sanitize($candidate['name']); ?>" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-control" name="description" rows="3" required>Interview for <?php echo sanitize($job['title']); ?> position</textarea>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Date</label>
-                            <input type="date" class="form-control" name="meeting_date" min="<?php echo date('Y-m-d'); ?>" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Time</label>
-                            <input type="time" class="form-control" name="meeting_time" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Duration (minutes)</label>
-                        <select class="form-control" name="duration" required>
-                            <option value="15">15 minutes</option>
-                            <option value="30" selected>30 minutes</option>
-                            <option value="45">45 minutes</option>
-                            <option value="60">1 hour</option>
-                            <option value="90">1.5 hours</option>
-                            <option value="120">2 hours</option>
-                        </select>
-                    </div>
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> A Zoom meeting will be automatically created and the candidate will receive the meeting link.
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="submitMeetingBtn" onclick="submitMeeting()">
-                    <i class="bi bi-calendar-check"></i> Schedule Meeting
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <style>
 @media print {

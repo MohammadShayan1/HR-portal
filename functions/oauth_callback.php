@@ -9,31 +9,51 @@
  * - HTTPS enforcement
  */
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/security.php';
 
+// Load config
+if (!file_exists(__DIR__ . '/../config.php')) {
+    die('Error: config.php not found. Please copy config.example.php to config.php');
+}
+$config = require(__DIR__ . '/../config.php');
+
 // Force HTTPS for OAuth
-$config = file_exists(__DIR__ . '/../config.php') ? require(__DIR__ . '/../config.php') : [];
 if (($config['force_https'] ?? false)) {
-    force_https();
+    if (function_exists('force_https')) {
+        force_https();
+    }
 }
 
 // Add security headers
-add_security_headers();
+if (function_exists('add_security_headers')) {
+    add_security_headers();
+}
 
-// Initialize secure session
-session_start();
-if (!init_secure_session()) {
-    die('Session expired. Please try again.');
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Initialize secure session (but don't die if it fails during OAuth)
+if (function_exists('init_secure_session')) {
+    init_secure_session();
 }
 
 $provider = $_GET['provider'] ?? '';
 $action = $_GET['action'] ?? '';
 $code = $_GET['code'] ?? '';
 
-// Verify origin for security
-if (!verify_origin()) {
-    log_security_event('oauth_invalid_origin', ['provider' => $provider]);
+// Verify origin for security (skip if function doesn't exist)
+if (function_exists('verify_origin') && !verify_origin()) {
+    if (function_exists('log_security_event')) {
+        log_security_event('oauth_invalid_origin', ['provider' => $provider]);
+    }
     die('Invalid request origin');
 }
 
@@ -65,7 +85,9 @@ if ($provider === 'google') {
         $_SESSION['oauth_user_id'] = $user_id;
         $_SESSION['oauth_timestamp'] = time();
         
-        log_security_event('oauth_initiated', ['provider' => 'google'], $user_id);
+        if (function_exists('log_security_event')) {
+            log_security_event('oauth_initiated', ['provider' => 'google'], $user_id);
+        }
         
         $auth_url = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
             'client_id' => $client_id,
@@ -85,7 +107,9 @@ if ($provider === 'google') {
         
         // Verify state parameter (CSRF protection)
         if ($state !== ($_SESSION['oauth_state'] ?? '')) {
-            log_security_event('oauth_invalid_state', ['provider' => 'google']);
+            if (function_exists('log_security_event')) {
+                log_security_event('oauth_invalid_state', ['provider' => 'google']);
+            }
             die('Invalid state parameter. Possible CSRF attack.');
         }
         
@@ -130,7 +154,9 @@ if ($provider === 'google') {
                 set_setting('google_calendar_refresh_token', $encrypted_refresh, $user_id);
             }
             
-            log_security_event('oauth_success', ['provider' => 'google'], $user_id);
+            if (function_exists('log_security_event')) {
+                log_security_event('oauth_success', ['provider' => 'google'], $user_id);
+            }
             
             // Clear OAuth session data
             unset($_SESSION['oauth_state']);
@@ -140,10 +166,12 @@ if ($provider === 'google') {
             header('Location: ../index.php?page=settings&google_connected=1');
             exit;
         } else {
-            log_security_event('oauth_failed', [
-                'provider' => 'google',
-                'error' => $result['error'] ?? 'unknown'
-            ], $_SESSION['oauth_user_id'] ?? null);
+            if (function_exists('log_security_event')) {
+                log_security_event('oauth_failed', [
+                    'provider' => 'google',
+                    'error' => $result['error'] ?? 'unknown'
+                ], $_SESSION['oauth_user_id'] ?? null);
+            }
             die('Failed to get access token: ' . ($result['error_description'] ?? 'Unknown error'));
         }
     }

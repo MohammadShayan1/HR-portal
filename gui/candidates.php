@@ -26,20 +26,22 @@ if ($job_id !== 'all' && $job_id > 0) {
 // Get candidates based on filter
 if ($job_id === 'all') {
     $stmt = $pdo->prepare("
-        SELECT c.*, j.title as job_title, s.id as booked_slot_id
+        SELECT c.*, j.title as job_title, s.id as booked_slot_id, r.score as report_score
         FROM candidates c
         JOIN jobs j ON c.job_id = j.id
         LEFT JOIN interview_slots s ON c.slot_id = s.id
+        LEFT JOIN reports r ON c.id = r.candidate_id
         WHERE j.user_id = ?
         ORDER BY c.applied_at DESC
     ");
     $stmt->execute([$user_id]);
 } else {
     $stmt = $pdo->prepare("
-        SELECT c.*, j.title as job_title, s.id as booked_slot_id
+        SELECT c.*, j.title as job_title, s.id as booked_slot_id, r.score as report_score
         FROM candidates c
         JOIN jobs j ON c.job_id = j.id
         LEFT JOIN interview_slots s ON c.slot_id = s.id
+        LEFT JOIN reports r ON c.id = r.candidate_id
         WHERE c.job_id = ? AND j.user_id = ?
         ORDER BY c.applied_at DESC
     ");
@@ -181,10 +183,16 @@ function filterByJob(jobId) {
                                                         <i class="bi bi-link-45deg"></i> Interview Link
                                                     </button>
                                                     <?php if (empty($candidate['booked_slot_id'])): ?>
-                                                        <button class="btn btn-sm btn-primary" 
-                                                                onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
-                                                            <i class="bi bi-calendar-check"></i> Send Scheduling Link
-                                                        </button>
+                                                        <?php if (!empty($candidate['report_score']) && $candidate['report_score'] >= 60): ?>
+                                                            <button class="btn btn-sm btn-primary" 
+                                                                    onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                                                <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                                                            </button>
+                                                        <?php elseif (!empty($candidate['report_score'])): ?>
+                                                            <button class="btn btn-sm btn-danger" disabled title="Score must be 60% or higher to send scheduling link">
+                                                                <i class="bi bi-x-circle"></i> Score Too Low (<?php echo $candidate['report_score']; ?>%)
+                                                            </button>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
                                                         <button class="btn btn-sm btn-success" disabled>
                                                             <i class="bi bi-check-circle"></i> Slot Booked
@@ -198,10 +206,16 @@ function filterByJob(jobId) {
                                                         <i class="bi bi-file-earmark-text"></i> Generate Report
                                                     </a>
                                                     <?php if (empty($candidate['booked_slot_id'])): ?>
-                                                        <button class="btn btn-sm btn-primary" 
-                                                                onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
-                                                            <i class="bi bi-calendar-check"></i> Send Scheduling Link
-                                                        </button>
+                                                        <?php if (!empty($candidate['report_score']) && $candidate['report_score'] >= 60): ?>
+                                                            <button class="btn btn-sm btn-primary" 
+                                                                    onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                                                <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                                                            </button>
+                                                        <?php elseif (!empty($candidate['report_score'])): ?>
+                                                            <button class="btn btn-sm btn-danger" disabled title="Score must be 60% or higher to send scheduling link">
+                                                                <i class="bi bi-x-circle"></i> Score Too Low (<?php echo $candidate['report_score']; ?>%)
+                                                            </button>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
                                                         <button class="btn btn-sm btn-success" disabled>
                                                             <i class="bi bi-check-circle"></i> Slot Booked
@@ -215,10 +229,16 @@ function filterByJob(jobId) {
                                                         <i class="bi bi-eye"></i> View Report
                                                     </a>
                                                     <?php if (empty($candidate['booked_slot_id'])): ?>
-                                                        <button class="btn btn-sm btn-primary" 
-                                                                onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
-                                                            <i class="bi bi-calendar-check"></i> Send Scheduling Link
-                                                        </button>
+                                                        <?php if (!empty($candidate['report_score']) && $candidate['report_score'] >= 60): ?>
+                                                            <button class="btn btn-sm btn-primary" 
+                                                                    onclick="sendSchedulingInvitation(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars($candidate['name']); ?>')">
+                                                                <i class="bi bi-calendar-check"></i> Send Scheduling Link
+                                                            </button>
+                                                        <?php elseif (!empty($candidate['report_score'])): ?>
+                                                            <button class="btn btn-sm btn-danger" disabled title="Score must be 60% or higher to send scheduling link">
+                                                                <i class="bi bi-x-circle"></i> Score Too Low (<?php echo $candidate['report_score']; ?>%)
+                                                            </button>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
                                                         <button class="btn btn-sm btn-success" disabled>
                                                             <i class="bi bi-check-circle"></i> Slot Booked

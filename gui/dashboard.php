@@ -329,7 +329,12 @@ $theme_accent = get_setting('theme_accent') ?? '#f093fb';
                 </div>
             </div>
             <div class="card-body">
-                <div id="calendar"></div>
+                <?php if (count($calendar_events) == 0 && !$google_sync_enabled && !$outlook_sync_enabled): ?>
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle"></i> Your calendar is empty. Click <strong>"+ Add Event"</strong> in the calendar toolbar below to create your first event, or <a href="index.php?page=settings">connect your Google/Outlook calendar</a> to sync events.
+                    </div>
+                <?php endif; ?>
+                <div id="calendar" style="min-height: 600px;"></div>
             </div>
         </div>
     </div>
@@ -532,6 +537,14 @@ $theme_accent = get_setting('theme_accent') ?? '#f093fb';
 document.addEventListener('DOMContentLoaded', function() {
     var calendarEl = document.getElementById('calendar');
     
+    if (!calendarEl) {
+        console.error('Calendar element not found!');
+        return;
+    }
+    
+    console.log('Initializing calendar...');
+    console.log('Events:', <?php echo json_encode($calendar_events); ?>);
+    
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         headerToolbar: {
@@ -574,8 +587,6 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         eventColor: '<?php echo $theme_primary; ?>',
         height: 'auto',
-        eventColor: '<?php echo $theme_primary; ?>',
-        height: 'auto',
         nowIndicator: true,
         navLinks: true,
         businessHours: true,
@@ -583,6 +594,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     calendar.render();
+    console.log('Calendar rendered successfully');
     
     // Make calendar globally accessible
     window.calendarInstance = calendar;

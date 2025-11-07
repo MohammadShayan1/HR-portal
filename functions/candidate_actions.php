@@ -339,33 +339,3 @@ function send_meeting_invitation_email($candidate_id) {
     
     return $result['success'];
 }
-
-/**
- * Log email activity for tracking
- */
-function log_email_activity($candidate_id, $recipient, $subject, $status) {
-    try {
-        $pdo = get_db();
-        
-        $stmt = $pdo->prepare("
-            INSERT INTO email_logs (candidate_id, recipient, subject, status, sent_at, user_agent, ip_address)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ");
-        
-        $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'CLI';
-        $ip_address = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-        
-        $stmt->execute([
-            $candidate_id,
-            $recipient,
-            $subject,
-            $status,
-            date('Y-m-d H:i:s'),
-            $user_agent,
-            $ip_address
-        ]);
-    } catch (Exception $e) {
-        // Silently fail logging to not break email sending
-        error_log("Email logging failed: " . $e->getMessage());
-    }
-}

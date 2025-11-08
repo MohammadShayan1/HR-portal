@@ -186,8 +186,19 @@ $stats['failed_count'] = $stats['failed_count'] ?? 0;
         }
         .table th:nth-child(1), .table td:nth-child(1) { width: 120px; min-width: 120px; }
         .table th:nth-child(2), .table td:nth-child(2) { width: 200px; min-width: 180px; }
-        .table th:nth-child(3), .table td:nth-child(3) { width: 250px; min-width: 200px; }
-        .table th:nth-child(4), .table td:nth-child(4) { width: auto; min-width: 200px; }
+        .table th:nth-child(3), .table td:nth-child(3) { 
+            width: 250px; 
+            min-width: 200px;
+            max-width: 250px;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+        .table th:nth-child(4), .table td:nth-child(4) { 
+            width: auto; 
+            min-width: 200px;
+            max-width: 350px;
+        }
         .table th:nth-child(5), .table td:nth-child(5) { width: 100px; min-width: 100px; text-align: center; }
         .table th:nth-child(6), .table td:nth-child(6) { width: 80px; min-width: 80px; text-align: center; }
         
@@ -245,6 +256,35 @@ $stats['failed_count'] = $stats['failed_count'] ?? 0;
             text-align: right;
             max-width: 60%;
             word-break: break-word;
+        }
+        
+        /* Modal table fixes */
+        .modal-body .table {
+            table-layout: fixed;
+            width: 100%;
+        }
+        .modal-body .table th {
+            width: 30%;
+            font-weight: 600;
+            background-color: #f8f9fa;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .modal-body .table td {
+            width: 70%;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+        .modal-body .table td small {
+            word-wrap: break-word;
+            word-break: break-all;
+            display: block;
+        }
+        .modal-lg {
+            max-width: 900px;
         }
         
         @media (max-width: 992px) {
